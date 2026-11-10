@@ -106,6 +106,8 @@ section.op { border-color: #1d4a30; }
   body { padding-block: 10px 30px; }
 }
 @media (prefers-reduced-motion: reduce) { .wake span::after { animation: none; } }
+.backhint { max-width: 60rem; margin: 10px auto 0; text-align: center; font-size: 15px; line-height: 1.5; color: var(--dim); }
+.backhint kbd { font: inherit; padding: 0 6px; border: 1px solid currentColor; border-radius: 4px; }
 </style>
 </head>
 <body>
@@ -135,6 +137,7 @@ section.op { border-color: #1d4a30; }
   </div>
   </div>
   <p class="turn">Turn your phone sideways for a bigger screen.</p>
+  <p class="backhint"><b>Stuck in something?</b> <b>Back</b> gets you out: <kbd>Esc</kbd> or <kbd>Backspace</kbd> on a keyboard, or the <b>BACK</b> button on the on-screen remote. It closes the console, stops a fight or The Last Stand, and wakes the screensaver.</p>
 
   <div class="card">
     <section>
@@ -142,7 +145,7 @@ section.op { border-color: #1d4a30; }
       <dl class="keys">
         <dt><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd></dt><dd>move around</dd>
         <dt><kbd>Enter</kbd></dt><dd>OK (hold it to rearrange)</dd>
-        <dt><kbd>Esc</kbd></dt><dd>Back</dd>
+        <dt><kbd>Esc</kbd><kbd>&#9003;</kbd></dt><dd>Back (Esc or Backspace; BACK on a phone): leave the console, a fight or the screensaver</dd>
       </dl>
       <p class="code">The secret code: <b>&uarr; &uarr; &darr; &darr; &larr; &rarr; &larr; &rarr;</b><br>Enter it once to wake up. Enter it again in red for the choice.</p>
       <ul class="try">
