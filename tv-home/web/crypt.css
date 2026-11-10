@@ -507,6 +507,10 @@ html.crypt-op .crypt-frame { box-shadow: 0 0 0 0.15rem rgba(57, 255, 122, 0.35);
 .crypt-console .cs { color: #eafff0; background: rgba(57, 255, 122, 0.16); text-shadow: 0 0 0.5rem rgba(57, 255, 122, 0.8); }
 .crypt-console .cfoot { padding: 0.75rem 1.5rem; border-top: 0.1rem solid rgba(57, 255, 122, 0.35); font-size: 1.5rem; opacity: 0.65; letter-spacing: 0.15em; }
 .crypt-program { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 56; background: rgba(0, 0, 0, 0.9); pointer-events: none; }
+.crypt-program.go { background: #000; }
+/* while a program runs, the home under it is hidden outright, so the TV only has the fight to draw */
+html.crypt-progon .home, html.crypt-progon .clock, html.crypt-progon .crypt-rain, html.crypt-progon .crypt-frame,
+html.crypt-progon .crypt-edge, html.crypt-progon .crypt-log, html.crypt-progon .crypt-trace { visibility: hidden; }
 .crypt-program .pl { position: absolute; left: 14rem; top: 44vh; font-family: var(--c-term); font-size: 3.5rem; letter-spacing: 0.1em; color: #4fd982;
   text-shadow: 0 0 0.35rem rgba(57, 255, 122, 0.35); transition: opacity 600ms ease; }
 .crypt-program.go .pl { opacity: 0; }

@@ -297,7 +297,10 @@
     var octx = ov.getContext("2d");
     function size() {
       var r = canvas.getBoundingClientRect();
-      W = Math.max(10, Math.round(r.width * dpr)); Hh = Math.max(10, Math.round(r.height * dpr));
+      // drawn at no more than 960 pixels across and stretched to fit: a TV fills pixels slowly,
+      // and soft lines are a fair trade for a steady picture
+      var res = Math.min(dpr, 960 / Math.max(1, r.width));
+      W = Math.max(10, Math.round(r.width * res)); Hh = Math.max(10, Math.round(r.height * res));
       if (canvas.width !== W || canvas.height !== Hh) { canvas.width = W; canvas.height = Hh; }
       if (ov.width !== W || ov.height !== Hh) { ov.width = W; ov.height = Hh; }
     }
@@ -341,7 +344,7 @@
     var GOLD = "255,205,110";
     var rings = [], sparks = [], bolt = null, fired = {}, said = {}, bolted = {}, sub = null, glow = null, beam = null, blowAt = -1;
     var stormOn = 1;   // 1: raining; falls to 0 at dawn
-    var abber = 0;
+    var abber = 0, dtS = 0;
 
     // how fast the film runs for you: slow while a prompt waits, held while he's down until you tap
     function gate(dt, now) {
@@ -491,7 +494,9 @@
 
     function frame(now) {
       if (!live) return;
-      var dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+      var raw = Math.min(0.06, Math.max(0.001, (now - last) / 1000));
+      dtS = dtS ? dtS * 0.75 + raw * 0.25 : raw;   // smoothed: one slow frame no longer makes everything jump
+      var dt = Math.min(0.05, dtS);
       last = now;
       st += dt * rate(st) * gate(dt, now);
       if (st > sc.end) { finish(); if (opt.onDone) opt.onDone("light"); return; }

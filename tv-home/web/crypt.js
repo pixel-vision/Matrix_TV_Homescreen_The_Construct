@@ -2091,7 +2091,7 @@
     document.body.appendChild(progEl);
     command("load " + p[2] + ".prg", true);
     setTimeout(function () {
-      progEl.classList.add("go");
+      progEl.classList.add("go"); root.classList.add("crypt-progon");
       progNow = window.cryptFight.mount(progEl.querySelector("canvas"), { start: p[1], once: true,
         scenery: ((window.COUCH_CONFIG || {}).home || {}).crypt_scenery === true || /[?&]scenery=1/.test(location.search), onHit: function () { gColour([255, 255, 255], true); setTimeout(function () { gColour(base(), true); }, 150); },
         onDone: programEnd });
@@ -2102,6 +2102,7 @@
     var fin = progEl && progEl.classList.contains("crypt-finale");
     if (progNow) { progNow.stop(); progNow = null; }
     if (progEl) { progEl.remove(); progEl = null; }
+    root.classList.remove("crypt-progon");
     swallow = false; wakeHome(); run();   // the rain starts again
     if (fin) crtOn();   // the finale ends like a reload: the tube comes back on
     command(fin ? "end of line." : FIGHT_QUOTES[progScene] || "i know kung fu.", true);
@@ -2116,7 +2117,7 @@
     command("load final.prg", true);
     setTimeout(function () {
       if (!progEl) return;
-      progEl.classList.add("go");
+      progEl.classList.add("go"); root.classList.add("crypt-progon");
       progNow = window.cryptFinal.mount(progEl.querySelector("canvas"), { onDone: programEnd });
     }, 1600);
   }
