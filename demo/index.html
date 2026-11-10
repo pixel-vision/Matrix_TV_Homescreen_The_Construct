@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Construct: demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a TV in the middle of a dark room. The screen is the page; the remote and the
+   shortcuts sit under it like a printed card that came in the box. One look (the film's), on purpose. */
+:root {
+  color-scheme: dark;
+  --room: #030806;          /* the room the TV sits in */
+  --panel: #07120c;         /* the card under the TV */
+  --line: #12301f;          /* hairlines and the TV's bezel */
+  --phosphor: #39ff7a;      /* the green of the code */
+  --bone: #c8ffd8;          /* bright text, the hero's colour */
+  --dim: #6fae86;           /* secondary text */
+  --red: #e0606f;           /* the red pill */
+  --blue: #7590d6;          /* the blue pill */
+  --f-display: "VT323", "Courier New", monospace;
+  --f-body: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+html, body { background: var(--room); color: var(--bone); }
+body {
+  font-family: var(--f-body); font-size: 0.9rem; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; }
+h1 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 2.6rem; line-height: 1; letter-spacing: 0.06em; color: var(--phosphor);
+  text-shadow: 0 0 12px rgba(57, 255, 122, 0.35); text-wrap: balance; }
+h1 small { font-size: 1.1rem; letter-spacing: 0.12em; color: var(--dim); text-shadow: none; margin-left: 10px; }
+.lede { margin: 0; color: var(--dim); max-width: 62ch; }
+
+/* the TV */
+.tv { position: relative; width: 100%; aspect-ratio: 16 / 9; max-width: 100%; background: #000; border: 1px solid var(--line);
+  border-radius: 6px; box-shadow: 0 0 0 6px #020403, 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 80px rgba(57, 255, 122, 0.05); overflow: hidden; }
+.tv iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #000; }
+.wake { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, 0.62); cursor: pointer; border: 0;
+  color: var(--phosphor); font-family: var(--f-display); font-size: clamp(1.4rem, 3.4vw, 2.6rem); letter-spacing: 0.08em; width: 100%; }
+.wake[hidden] { display: none; }
+.wake span { padding: 0.4em 0.9em; border: 1px solid rgba(57, 255, 122, 0.4); background: rgba(0, 10, 4, 0.85); }
+.wake span::after { content: "_"; animation: blink 1s steps(2) infinite; }
+.wake:focus-visible span { outline: 2px solid var(--bone); outline-offset: 4px; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* the card under it */
+.card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 18px; }
+@media (max-width: 760px) { .card { grid-template-columns: minmax(0, 1fr); } }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 16px 18px; min-width: 0; }
+h2 { margin: 0 0 10px; font-family: var(--f-display); font-weight: 400; font-size: 1.5rem; letter-spacing: 0.08em; color: var(--phosphor); }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; align-items: center; margin: 0; }
+.keys dt { display: flex; gap: 4px; }
+.keys dd { margin: 0; color: var(--dim); }
+kbd { font-family: var(--f-body); font-size: 0.8rem; min-width: 1.9em; text-align: center; padding: 2px 6px; border: 1px solid #2a5a3c;
+  border-bottom-width: 3px; border-radius: 4px; color: var(--bone); background: #0b1a11; }
+.code { margin-top: 12px; color: var(--dim); }
+.code b { color: var(--bone); font-weight: 500; letter-spacing: 0.15em; }
+.runs { display: flex; flex-wrap: wrap; gap: 8px; }
+button.run, select { font-family: var(--f-body); font-size: 0.85rem; color: var(--bone); background: #0b1a11; border: 1px solid #23543a;
+  border-radius: 3px; padding: 7px 12px; cursor: pointer; }
+button.run:hover, select:hover { border-color: var(--phosphor); color: #fff; }
+button.run:focus-visible, select:focus-visible { outline: 2px solid var(--phosphor); outline-offset: 2px; }
+button.red { border-color: rgba(224, 96, 111, 0.6); }
+button.red:hover { border-color: var(--red); }
+button.star { border-color: var(--phosphor); color: var(--phosphor); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.note { margin: 12px 0 0; color: var(--dim); font-size: 0.8rem; }
+.status { min-height: 1.4em; margin: 10px 0 0; font-size: 0.8rem; color: var(--phosphor); }
+ul.try { margin: 0; padding-left: 1.1em; color: var(--dim); display: grid; gap: 4px; }
+ul.try b { color: var(--bone); font-weight: 500; }
+section.op { border-color: #1d4a30; }
+.opgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 8px 28px; align-items: start; }
+@media (max-width: 760px) { .opgrid { grid-template-columns: minmax(0, 1fr); } }
+.opstep { margin: 0 0 10px; color: var(--dim); }
+.opstep b { color: var(--bone); font-weight: 500; }
+.oplist { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; }
+.oplist dt { font-family: var(--f-display); font-size: 1.2rem; letter-spacing: 0.08em; color: var(--phosphor); line-height: 1.3; }
+.oplist dd { margin: 0; color: var(--dim); }
+/* phones and tablets: a remote under the screen (or beside it, held sideways) */
+.stage { display: grid; gap: 14px; }
+.pad { display: none; }
+.turn { display: none; margin: 0; color: var(--dim); font-size: 0.8rem; text-align: center; }
+@media (pointer: coarse) {
+  .stage { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .stage .tv { width: 100%; }
+  .pad { display: grid; grid-template-columns: repeat(3, 4.2rem); grid-template-rows: repeat(3, 4.2rem); gap: 6px; justify-content: center;
+    align-content: center; touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .pad button { font-family: var(--f-display); font-size: 1.7rem; color: var(--bone); background: #0b1a11; border: 1px solid #23543a;
+    border-radius: 50%; touch-action: manipulation; -webkit-tap-highlight-color: transparent; padding: 0; }
+  .pad button.down, .pad button:active { background: #163a25; border-color: var(--phosphor); color: #fff; }
+  .pad .ok { font-size: 1.4rem; letter-spacing: 0.06em; border-color: var(--phosphor); color: var(--phosphor); }
+  .pad .back { border-radius: 10px; font-size: 1.1rem; letter-spacing: 0.06em; }
+  .wake { display: none; }
+}
+@media (pointer: coarse) and (orientation: portrait) { .turn { display: block; } }
+@media (pointer: coarse) and (orientation: landscape) {
+  .stage { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .stage .tv { width: min(100%, calc((100dvh - 40px) * 16 / 9)); justify-self: end; }
+  .pad { grid-template-columns: repeat(3, 3.6rem); grid-template-rows: repeat(3, 3.6rem); }
+  header { display: none; }   /* sideways: the screen and the remote fill the view; the notes are below */
+  body { padding-block: 10px 30px; }
+}
+@media (prefers-reduced-motion: reduce) { .wake span::after { animation: none; } }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <h1>THE CONSTRUCT <small>home screen demo</small></h1>
+    <p class="lede">A Matrix-style home screen built for a Sony Google TV, running here in your browser. Your keyboard is the remote; on a phone or tablet, use the remote under the screen. Apps and shows are samples; nothing here reaches a real TV.</p>
+  </header>
+
+  <div class="stage">
+  <div class="tv">
+    <iframe id="tv" title="The Construct home screen" src="tv-home/web/index.html?mock=1&amp;reset=1&amp;look=crypt&amp;names=Neo,Operator&amp;clock=24h&amp;wx=rain&amp;place=Zion&amp;panels=1&amp;quick=input,settings,saver&amp;scenery=1&amp;motion=1&amp;moments=vase,bricks,code,phone,sentinels,agentface,reddress,rabbit,cat"></iframe>
+    <button class="wake" id="wake" type="button"><span>CLICK TO TAKE THE REMOTE</span></button>
+  </div>
+  <div class="pad" id="pad" aria-label="Remote">
+    <button type="button" class="back" data-key="Escape" aria-label="Back">BACK</button>
+    <button type="button" data-key="ArrowUp" aria-label="Up">&uarr;</button>
+    <span></span>
+    <button type="button" data-key="ArrowLeft" aria-label="Left">&larr;</button>
+    <button type="button" class="ok" data-key="Enter" aria-label="OK">OK</button>
+    <button type="button" data-key="ArrowRight" aria-label="Right">&rarr;</button>
+    <span></span>
+    <button type="button" data-key="ArrowDown" aria-label="Down">&darr;</button>
+    <span></span>
+  </div>
+  </div>
+  <p class="turn">Turn your phone sideways for a bigger screen.</p>
+
+  <div class="card">
+    <section>
+      <h2>THE REMOTE</h2>
+      <dl class="keys">
+        <dt><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd></dt><dd>move around</dd>
+        <dt><kbd>Enter</kbd></dt><dd>OK (hold it to rearrange)</dd>
+        <dt><kbd>Esc</kbd></dt><dd>Back</dd>
+      </dl>
+      <p class="code">The secret code: <b>&uarr; &uarr; &darr; &darr; &larr; &rarr; &larr; &rarr;</b><br>Enter it once to wake up. Enter it again in red for the choice.</p>
+      <ul class="try">
+        <li>Press <b>&darr;</b> six times past the bottom row.</li>
+        <li>After an agent alert, press the arrows the operator calls to reach the phone.</li>
+        <li>Leave it alone for a minute and watch the tiles fade.</li>
+        <li><b>The vase:</b> press any button while it sits on the clock window.</li>
+        <li><b>Sentinels:</b> don't touch anything for 15 seconds. Press a key and they find you.</li>
+        <li><b>The phone:</b> press Enter to answer it.</li>
+        <li><b>Proximity alarm:</b> press Enter to fire the EMP once it's armed.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>RUN IT NOW</h2>
+      <div class="runs">
+        <button class="run red" id="b-red" type="button">Wake up</button>
+        <button class="run red" id="b-pills" type="button">The pill choice</button>
+        <button class="run" id="b-agent" type="button">Agent alert</button>
+        <button class="run" id="b-alarm" type="button">Proximity alarm</button>
+        <button class="run" id="b-saver" type="button">Screensaver</button>
+        <button class="run star" id="b-final" type="button">Fight The Last Stand</button>
+      </div>
+      <div class="row">
+        <label for="moment">Moment:</label>
+        <select id="moment">
+          <option value="vase">The vase</option>
+          <option value="bricks">They changed something</option>
+          <option value="code">I can see the code</option>
+          <option value="phone">The phone rings</option>
+          <option value="sentinels">Sentinels overhead</option>
+          <option value="agentface">An agent speaks</option>
+          <option value="reddress">The red dress</option>
+          <option value="rabbit">The white rabbit</option>
+          <option value="cat">Deja vu (the cat)</option>
+        </select>
+        <button class="run" id="b-moment" type="button">Play moment</button>
+      </div>
+      <div class="row">
+        <button class="run" id="b-op" type="button">Switch to the Operator</button>
+        <button class="run" id="b-reset" type="button">Start again</button>
+      </div>
+      <p class="status" id="status" aria-live="polite"></p>
+      <p class="note">In The Last Stand you fight: hit each arrow as it flashes up to land your blow or block his, press &rarr; to charge in the sky, tap Enter to get back up, and press Enter at the end when it's time. About two and a half minutes; Esc stops it. On the TV these all happen on their own (see below). The screensaver plays a fight every 30 seconds after the rain spells the time.</p>
+    </section>
+  </div>
+
+  <section class="op">
+    <h2>EVERYTHING ELSE: THE OPERATOR'S CONSOLE</h2>
+    <div class="opgrid">
+      <div>
+        <p class="opstep"><b>Getting there.</b> Press <b>Switch to the Operator</b> above. Or, on the home itself, press <kbd>&uarr;</kbd> until the names at the top left are lit, <kbd>&rarr;</kbd> to <b>OPERATOR</b>, then <kbd>Enter</kbd>.</p>
+        <p class="opstep"><b>Using it.</b> <kbd>&uarr;</kbd> <kbd>&darr;</kbd> to choose, <kbd>Enter</kbd> to run, <kbd>Esc</kbd> to close. <kbd>Enter</kbd> on the OPERATOR name opens it again.</p>
+      </div>
+      <dl class="oplist">
+        <dt>Programs</dt><dd>each screensaver fight on its own, ending with a line from the film</dd>
+        <dt>Finale</dt><dd>The Last Stand, to fight</dd>
+        <dt>Events</dt><dd>agent, proximity alarm, wake up, the pill choice, the cat, the spoon, the screensaver</dd>
+        <dt>Moments</dt><dd>all nine, listed separately</dd>
+        <dt>Training</dt><dd>the hardline run against the clock, with a record</dd>
+        <dt>Messages</dt><dd>leave one for Neo; it plays when you switch back</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="op">
+    <h2>ON ITS OWN, AND THE TWO RED EVENTS</h2>
+    <div class="opgrid">
+      <div>
+        <p class="opstep"><b>It happens by itself.</b> Leave the home on and the moments turn up at random, every 5 to 10 minutes. An agent alert and the proximity alarm take turns, one every 9 minutes. They pause while an app or the screensaver is on. The buttons above and the console just run them now instead of waiting.</p>
+        <p class="opstep"><b>After a fight.</b> Wake the screensaver during a fight, or finish a program in the console, and the command line answers with a line from that scene.</p>
+      </div>
+      <dl class="oplist">
+        <dt>1. Wake up</dt><dd>The construct wakes up: the screen is taken over, the glass shatters and everything turns red. System compromised. In red, agents come every 1 to 2 minutes instead of every 18.</dd>
+        <dt>2. The pill choice</dt><dd>Morpheus offers the choice. Blue takes you back to the green. Red: the mirror takes you, then the construct breaks apart, with tearing, errors and flickering lights. Run the pill choice again and take blue to put it back together.</dd>
+      </dl>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var tv = document.getElementById("tv"), wake = document.getElementById("wake"), status = document.getElementById("status");
+  var home = function () { try { return tv.contentWindow; } catch (e) { return null; } };
+  var crypt = function () { var w = home(); return w && w.crypt; };
+  function take() { wake.hidden = true; try { tv.focus(); home().focus(); } catch (e) {} }
+  function say(t) { status.textContent = t; clearTimeout(say.t); say.t = setTimeout(function () { status.textContent = ""; }, 5000); }
+  wake.addEventListener("click", take);
+  // the on-screen remote: each button sends the same key presses a keyboard (or the TV remote) would.
+  // Holding an arrow repeats it; holding OK is a long press (rearranging tiles).
+  function send(key, type, repeat) {
+    var w = home();
+    if (!w || !w.document) return;
+    try { w.document.dispatchEvent(new w.KeyboardEvent(type, { key: key, bubbles: true, cancelable: true, repeat: !!repeat })); } catch (e) {}
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("#pad button"), function (b) {
+    var key = b.getAttribute("data-key"), rep = null, held = false;
+    var up = function () {
+      if (!held) return;
+      held = false; clearTimeout(rep); clearInterval(rep); b.classList.remove("down");
+      send(key, "keyup");
+    };
+    b.addEventListener("pointerdown", function (e) {
+      e.preventDefault(); held = true; b.classList.add("down");
+      if (navigator.vibrate) try { navigator.vibrate(8); } catch (x) {}
+      send(key, "keydown");
+      if (/^Arrow/.test(key)) rep = setTimeout(function () { rep = setInterval(function () { send(key, "keydown", true); }, 170); }, 420);
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) { b.addEventListener(ev, up); });
+    b.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  });
+  window.addEventListener("blur", function () { /* focus moved into the TV: fine */ });
+  // after any button, the keyboard goes back to the TV
+  function run(fn, msg) {
+    return function () {
+      var c = crypt();
+      if (!c) { say("The home is still starting. Give it a few seconds."); return; }
+      try { fn(c); if (msg) say(msg); } catch (e) { say("That didn't start. Try again in a moment."); }
+      take();
+    };
+  }
+  document.getElementById("b-red").addEventListener("click", run(function (c) { c.demo.wake(); }, "Wake up. Everything turns red."));
+  document.getElementById("b-pills").addEventListener("click", run(function (c) { c.demo.pills(); }, "The choice: arrows to pick a pill, Enter to take it."));
+  document.getElementById("b-agent").addEventListener("click", run(function (c) { c.demo.agent(); }, "Agent alert. Press the arrows the operator calls, then Enter for the phone."));
+  document.getElementById("b-alarm").addEventListener("click", run(function (c) { c.demo.alarm(); }, "Proximity alarm. Press Enter to fire the EMP once it's armed."));
+  document.getElementById("b-saver").addEventListener("click", run(function (c) { c.saver(); }, "Screensaver. Any key wakes the home."));
+  document.getElementById("b-final").addEventListener("click", run(function (c) { c.demo.finale(); }, "Hit the arrows when they flash. Tap Enter to get up. Esc stops it."));
+  document.getElementById("b-moment").addEventListener("click", run(function (c) {
+    var m = document.getElementById("moment").value;
+    var tips = { vase: "Press any button to knock the vase over.", sentinels: "Go dark. Don't press anything for 15 seconds.",
+      phone: "Press Enter to answer the phone." };
+    if (!c.moment(m)) say("Another moment is still playing. Try again when it's done.");
+    else if (tips[m]) say(tips[m]);
+  }, ""));
+  var op = document.getElementById("b-op");
+  op.addEventListener("click", function () {
+    var w = home(), toOp = op.textContent.indexOf("Operator") >= 0;
+    try { w.localStorage.setItem("tvhome.who", toOp ? "operator-1" : "neo-0"); } catch (e) {}
+    op.textContent = toOp ? "Switch back to Neo" : "Switch to the Operator";
+    tv.src = tv.src.replace("&reset=1", "");
+    say(toOp ? "The Operator's console opens. Esc closes it; Enter on the Operator name opens it again." : "Back to Neo.");
+    tv.addEventListener("load", take, { once: true });
+  });
+  document.getElementById("b-reset").addEventListener("click", function () {
+    try { home().localStorage.clear(); } catch (e) {}
+    op.textContent = "Switch to the Operator";
+    tv.src = tv.src.indexOf("reset=1") < 0 ? tv.src.replace("mock=1", "mock=1&reset=1") : tv.src + "&r=" + Date.now();
+    tv.addEventListener("load", take, { once: true });
+    say("Starting again.");
+  });
+  // a click inside the TV also takes the remote
+  tv.addEventListener("load", function () { try { home().addEventListener("mousedown", take); } catch (e) {} });
+})();
+</script>
+
+</body>
+</html>

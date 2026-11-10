@@ -27,10 +27,10 @@
   // read in readConfig() once the page starts (mock.js fills them in for previews). See docs/CONFIG.md.
   var CFG = {}, HOME = {}, TVCFG = {}, QUICK = [];
   var WXCFG = { lat: -33.8688, lon: 151.2093, place: "Sydney", timezone: "Australia/Sydney" };
-  var QUICK_ALL = ["sleep", "picture", "look", "input", "bluetooth", "network"];
+  var QUICK_ALL = ["sleep", "picture", "look", "input", "settings", "saver", "bluetooth", "network"];
   var ON_TV = false;   // served by the on-TV app (config "mode"), which can open the TV's own settings screens
   // The look: ?theme= for a preview, then Home settings (or the Look button) on this TV, then home.look.
-  var THEME = "night", NIGHT = true, CLOCK24 = false;
+  var THEME = "night", NIGHT = true, CRYPT = false, CLOCK24 = false;
   // Glass panels ("off", "on", or "lite": no blur, for slower TVs) and the video background, from
   // Home settings, then home.glass and home.video_url. Both are off unless someone switches them on.
   var GLASS = "off", GLASS_ICONS = false, VIDEO_ON = false, VIDEO_URL = "";
@@ -83,6 +83,14 @@
   var TUCKED = ["com.mediatek.wwtv.tvcenter", "com.google.android.youtube.tvmusic", "com.spotify.tv.android"];
   // The same tools on other makers' TVs, by name.
   var TUCKED_NAMES = /^(screen ?shar|live ?tv|usb|media ?cent|browser|device assistant)/i;
+  // home.first_apps: the household's own favourites, by the start of their name ("VLC" finds
+  // "VLC for Android"), first on the dock in this order and never tucked away.
+  var FIRST = [];
+  function firstRank(a) {
+    var n = String(a.name || "").toLowerCase();
+    for (var i = 0; i < FIRST.length; i++) if (n.indexOf(FIRST[i]) === 0) return i;
+    return -1;
+  }
   // The Play Store, under the name most people know it by (in the chosen language).
   var RENAME = { "com.android.vending": "app_store" };
   // Never shown: home screens, store and system clutter, and Moonlight (a screen tile opens it).
@@ -100,6 +108,7 @@
   var HOLD_MS = 600;    // how long OK is held to pick something up
 
   var ICONS = {
+    saver: '<svg viewBox="0 0 24 24"><rect x="2.5" y="3.5" width="19" height="13" rx="2"/><path d="M8 7v3M12 6.5v5M16 7.5v2.5M9 20.5h6"/></svg>',
     screen: '<svg viewBox="0 0 24 24"><rect x="2.5" y="3.5" width="19" height="13" rx="2"/><path d="M9 20.5h6M12 16.5v4"/></svg>',
     moon: '<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
     picture: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" class="fill"/></svg>',
@@ -193,14 +202,20 @@
     QUICK = (Array.isArray(ST.quick) ? ST.quick : TVCFG.quick || ["sleep", "picture"])
       .filter(function (q, i, a) { return QUICK_ALL.indexOf(q) >= 0 && a.indexOf(q) === i; });
     THEME = (Q.match(/[?&]theme=([a-z]+)/) || [])[1] || lookSetting();
-    if (THEME !== "classic") THEME = "night";
-    NIGHT = THEME === "night";
+    if (THEME !== "classic" && THEME !== "crypt") THEME = "night";
+    // Crypt (crypt.js): the Night layout (clock, cards, dock) in green code rain, the clock in a terminal window
+    CRYPT = THEME === "crypt";
+    // the other looks have the usual dark teal behind the page (the Crypt look asks for black itself)
+    if (!CRYPT && window.TVOS && TVOS.ground) { try { TVOS.ground("#0D1E19"); } catch (e) {} }
+    NIGHT = THEME === "night" || CRYPT;
     document.documentElement.classList.toggle("theme-night", NIGHT);
-    GLASS = glassSetting();
+    document.documentElement.classList.toggle("theme-crypt", CRYPT);
+    GLASS = CRYPT ? "off" : glassSetting();   // Crypt draws its own panels
     document.documentElement.classList.toggle("glass", GLASS !== "off");
     document.documentElement.classList.toggle("glass-lite", GLASS === "lite");
     // glass app icons (#25): set in Home settings, else home.glass_icons; off unless switched on
     GLASS_ICONS = typeof ST.glass_icons === "boolean" ? ST.glass_icons : HOME.glass_icons === true;
+    if (CRYPT) GLASS_ICONS = false;   // Crypt tints the icons itself (crypt.css)
     document.documentElement.classList.toggle("glass-icons", GLASS_ICONS);
     GLASS_AMT = glassAmount();
     CLOCK_LIQUID = (ST.clock_style || HOME.clock_style) === "liquid";
@@ -210,8 +225,11 @@
     VIDEO_ON = !!VIDEO_URL && (typeof ST.video === "boolean" ? ST.video : true);
     GRID_COLS = NIGHT ? 12 : 8;
     DOCK_APPS = Math.max(1, Math.min(10, parseInt(HOME.dock_size, 10) || 10));
-    if (smartOn()) DOCK_APPS = Math.min(DOCK_APPS, 9);   // the Smart home tile takes one place in the dock
+    // the Smart home tile and the input tiles (home.input_tiles) take places in the dock too
+    DOCK_APPS = Math.max(1, Math.min(DOCK_APPS, 10 - (smartOn() ? 1 : 0) - inputItems().length));
     CLOCK24 = clock24();
+    FIRST = (Array.isArray(HOME.first_apps) ? HOME.first_apps : []).filter(function (n) { return typeof n === "string" && n.trim(); })
+      .map(function (n) { return n.trim().toLowerCase(); });
     (Array.isArray(HOME.hide_packages) ? HOME.hide_packages : []).forEach(function (p) {
       if (typeof p === "string" && HIDDEN.indexOf(p) < 0) HIDDEN.push(p);
     });
@@ -363,6 +381,16 @@
   }
 
   // Open-Meteo gives Celsius; Fahrenheit is worked out here when Home settings asks for it.
+  // Crypt: the local weather as one terminal line under the date, in the clock's window:
+  // > CAIRNS CBD  27°  HIGH 31°  HUM 70%  RAIN 40%. Parts the weather service did not give (a bridge
+  // sends only the temperature) are left out.
+  function cryptWeather(w) {
+    var a = [WXCFG.place, tempText(w.temp)];
+    if (w.high != null) a.push(t("wx_high") + " " + tempText(w.high));
+    if (w.humidity != null) a.push(t("wx_hum") + " " + w.humidity + "%");
+    if (w.rain != null) a.push(t("wx_rain_chance") + " " + w.rain + "%");
+    return '<span class="cwx"><i>&gt; </i>' + esc(a.filter(Boolean).join("  ")) + "</span>";
+  }
   function tempText(c) { return WX_F ? Math.round(c * 9 / 5 + 32) + "°F" : c + "°"; }
   function wxText(w) { var k = WMO_KEY[w.code]; return k ? t(k) : (w.text || ""); }
 
@@ -374,12 +402,16 @@
     var loc = window.I18N ? window.I18N.locale() : "en-AU";
     var day = d.toLocaleDateString(loc, { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
     day = day.charAt(0).toUpperCase() + day.slice(1);   // "lunes 27 de octubre" starts a line on screen
+    // Crypt (slick): a terminal date, SUN 08 NOV
+    if (CRYPT && document.documentElement.classList.contains("crypt-slick")) {
+      day = d.toLocaleDateString(loc, { weekday: "short", day: "2-digit", month: "short" }).replace(/[,.]/g, "").toUpperCase();
+    }
     var w = NIGHT && WX_SHOW && data.weather && data.weather.temp != null ? data.weather : null;
     $("date").innerHTML = '<span class="dline">' + esc(day) + (w ? '<span class="wx">' + wxIcon(w) + esc(tempText(w.temp)) +
-      '<span class="ww"> ' + esc(wxText(w)) + "</span></span>" : "") + "</span>";
+      '<span class="ww"> ' + esc(wxText(w)) + "</span></span>" : "") + "</span>" + (CRYPT && w ? cryptWeather(w) : "");
     fitDate();
     document.body.classList.toggle("night", h >= 21 || h < 6);
-    if (NIGHT) glassClock(hm);
+    if (NIGHT && !CRYPT) glassClock(hm);
     if (quickReady) renderQuick();
   }
 
@@ -643,7 +675,12 @@
   function refreshWeather() {
     if (!NIGHT || !WX_SHOW) return Promise.resolve();
     var direct = OFFLINE || !!(ST.place && isFinite(ST.place.lat));
-    return (direct ? weatherDirect() : api("GET", "/api/weather")).then(function (j) { data.weather = j; clock(); }, function () {});
+    if (window.MOCK_WEATHER) {   // ?wx=1 previews
+      data.weather = window.MOCK_WEATHER; clock();
+      if (CRYPT && window.crypt && window.crypt.weather) window.crypt.weather(data.weather);
+      return Promise.resolve();
+    }
+    return (direct ? weatherDirect() : api("GET", "/api/weather")).then(function (j) { data.weather = j; clock(); if (CRYPT && window.crypt && window.crypt.weather) window.crypt.weather(j); }, function () {});
   }
 
   // Open-Meteo (free, no key), the same call the bridge makes. The words come from i18n.js.
@@ -653,10 +690,18 @@
     82: "wx_heavy_showers", 95: "wx_storms", 96: "wx_storms", 99: "wx_storms" };
   function weatherDirect() {
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + WXCFG.lat + "&longitude=" + WXCFG.lon +
-      "&current=temperature_2m,weather_code,is_day&timezone=" + encodeURIComponent(WXCFG.timezone || "auto") + "&forecast_days=1";
+      "&current=temperature_2m,weather_code,is_day,relative_humidity_2m,wind_speed_10m" +
+      "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
+      "&timezone=" + encodeURIComponent(WXCFG.timezone || "auto") + "&forecast_days=1";
     return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
-      var c = j.current, code = Math.round(c.weather_code);
-      return { temp: Math.round(c.temperature_2m), code: code, text: "", is_day: !!c.is_day };
+      var c = j.current, code = Math.round(c.weather_code), d = j.daily || {};
+      var day = function (k) { var v = d[k] && d[k][0]; return v == null ? null : Math.round(v); };
+      // the extra details (humidity, wind, the day's high and low, chance of rain) are shown by the
+      // Crypt look; the other looks show the temperature and the words, as before
+      return { temp: Math.round(c.temperature_2m), code: code, text: "", is_day: !!c.is_day,
+        humidity: c.relative_humidity_2m == null ? null : Math.round(c.relative_humidity_2m),
+        wind: c.wind_speed_10m == null ? null : Math.round(c.wind_speed_10m),
+        high: day("temperature_2m_max"), low: day("temperature_2m_min"), rain: day("precipitation_probability_max") };
     });
   }
 
@@ -697,6 +742,8 @@
       if (q === "picture") return !OFFLINE && picShown;
       if (q === "look") return true;
       if (q === "input") return !OFFLINE || nativeInputs();
+      if (q === "settings") return true;   // the TV's own settings (openTvSettings)
+      if (q === "saver") return !!(window.crypt && window.crypt.saver);   // the Crypt screensaver, now
       if (q === "bluetooth" || q === "network") return ON_TV && !OFFLINE;
       return false;
     });
@@ -732,6 +779,10 @@
         el.innerHTML = ICONS.look + "<span>" + esc(NIGHT ? t("classic_look") : t("night_look")) + "</span>";
       } else if (q === "input") {
         el.innerHTML = ICONS.input + "<span>" + esc(t("input")) + "</span>";
+      } else if (q === "settings") {
+        el.innerHTML = ICONS.gear + "<span>" + esc(t("gear_tv")) + "</span>";
+      } else if (q === "saver") {
+        el.innerHTML = ICONS.saver + "<span>" + esc(t("screensaver")) + "</span>";
       } else if (q === "bluetooth" || q === "network") {
         el.innerHTML = ICONS[q] + "<span>" + esc(t(q)) + "</span>";
       }
@@ -778,7 +829,8 @@
   }
   // The look is kept on this TV; the page starts again in the other look.
   function toggleLook() {
-    ST.look = NIGHT ? "classic" : "night";
+    // the Night or Crypt look and Classic; Crypt comes back if it is the household's own look
+    ST.look = NIGHT ? "classic" : HOME.look === "crypt" ? "crypt" : "night";
     keep("tvhome.look", ST.look);
     saveSettings();
     restart();
@@ -868,6 +920,8 @@
     else if (q === "picture") togglePicture();
     else if (q === "look") toggleLook();
     else if (q === "input") openInputs();
+    else if (q === "settings") openTvSettings();
+    else if (q === "saver") window.crypt.saver();
     else if (q === "bluetooth" || q === "network") openSettingsScreen(q);
   }
   function refreshQuick() {
@@ -944,9 +998,16 @@
     zone = "people";
   }
   function pickWho(id) {
-    if (id === who) return;
+    if (id === who) {   // OK on the person already picked: the looks may have something for them (the Crypt console)
+      try { document.dispatchEvent(new CustomEvent("couch-who-again", { detail: { id: id } })); } catch (e) {}
+      return;
+    }
     who = id; s = 0;
     try { localStorage.setItem("tvhome.who", who); } catch (e) {}
+    try {   // the looks can greet them (the Crypt look's command line)
+      var pp = personById(id);
+      document.dispatchEvent(new CustomEvent("couch-who", { detail: { name: pp ? pp.name : "", first: PEOPLE.length && PEOPLE[0].id === id } }));
+    } catch (e) {}
     if (!NOBODY) api("POST", "/api/who", { who: who }).catch(function () {});
     renderShelf();
   }
@@ -1009,6 +1070,7 @@
 
   // ---------------- apps ----------------
   function tucked(a) {
+    if (firstRank(a) >= 0) return false;
     return TUCKED.indexOf(a.package) >= 0 || TUCKED_NAMES.test(a.name || "");
   }
   function isNew(pkg) { return newApps.indexOf(pkg) >= 0; }
@@ -1022,7 +1084,34 @@
   // config.json has a home_assistant section with rooms or scenes. Otherwise nothing changes.
   function smartOn() { return !!(window.smartHome && window.smartHome.available()); }
   function smartItem() { return { kind: "smart", name: t("smart_home"), package: "smart:home" }; }
-  function toolItems() { return smartOn() ? [smartItem(), gearItem()] : [gearItem()]; }
+  function toolItems() {
+    var later = inputItems().filter(function (x) { return !x.first; });
+    return later.concat(smartOn() ? [smartItem(), gearItem()] : [gearItem()]);
+  }
+  // home.input_tiles: dock tiles that switch straight to one of the TV's inputs, for example
+  // {"name": "PC", "input": "HDMI 4"}, after the apps, or with "first": true at the very start. Matched against the TV's own input names (a port renamed on
+  // the TV counts, and so does a device HDMI-CEC sees behind it), then by the port's number.
+  function inputItems() {
+    return (Array.isArray(HOME.input_tiles) ? HOME.input_tiles : []).filter(function (x) { return x && x.name && x.input; })
+      .slice(0, 4).map(function (x, i) { return { kind: "input", name: String(x.name), input: String(x.input), package: "input:" + i, first: x.first === true }; });
+  }
+  function findInput(want) {
+    var flat = function (v) { return String(v || "").toLowerCase().replace(/\s+/g, ""); }, w = flat(want);
+    var list = inputList(), num = (w.match(/(\d+)$/) || [])[1];
+    return list.filter(function (x) { return flat(x.label) === w; })[0] ||
+      list.filter(function (x) { return flat(x.label).indexOf(w) === 0; })[0] ||
+      list.filter(function (x) { return (x.devices || []).some(function (d) { return flat(d).indexOf(w) === 0; }); })[0] ||
+      (num ? list.filter(function (x) { return x.type === "hdmi" && (flat(x.label).match(/(\d+)/) || [])[1] === num; })[0] : null) || null;
+  }
+  function openInputTile(a) {
+    var x = findInput(a.input), done = false;
+    try { done = !!(x && TV && TV.openInput && TV.openInput(x.id)); } catch (e) {}
+    if (done) return;
+    if (x && window.MOCK_INPUTS) { note(t("opening", { title: x.label })); return; }
+    // no such input listed: the TV's own input screen, if it has one
+    try { done = !!(TV && TV.openInputs && TV.openInputs()); } catch (e) {}
+    if (!done) note(t("no_inputs"));
+  }
   function gridList() {
     if (NIGHT) return dockList();
     var apps = shownApps().filter(function (a) { return a.package !== SETTINGS_PKG; });
@@ -1066,6 +1155,8 @@
     var store = data.apps.filter(function (a) { return a.package === STORE_PKG; })[0];
     var arr = arrangeItems();
     var list = expanded ? arr.items.slice() : arr.items.slice(0, arr.line);
+    // input tiles with "first": true lead the dock, before every app
+    list = inputItems().filter(function (x) { return x.first; }).concat(list);
     if (expanded && store) list.unshift({ kind: "app", store: true, name: t("app_store"), package: STORE_PKG, id: store.id });
     list = list.concat(toolItems());
     if (!expanded) list.push(moreItem());
@@ -1127,7 +1218,7 @@
   function holdApp() {
     var a = gridItems[g];
     if (!a || a.kind === "more") return false;
-    if (a.store || a.kind === "gear" || a.kind === "smart" || a.kind === "screen") { flash(t("stays_put", { name: a.name })); return true; }
+    if (a.store || a.kind === "gear" || a.kind === "smart" || a.kind === "screen" || a.kind === "input") { flash(t("stays_put", { name: a.name })); return true; }
     if (a.kind !== "app") return startMove();
     openAppMenu(a);
     return true;
@@ -1218,10 +1309,12 @@
     return true;
   }
   function moveLift(dx, dy) {
+    // input tiles with "first" sit before the apps on screen, so screen places are shifted by them
+    var lead = expanded ? 0 : inputItems().filter(function (x) { return x.first; }).length;
     var o = data.order, i = o.packages.indexOf(lift.pkg);
     if (dx) {
       var j = i + dx;
-      if (j >= 0 && j < o.line) { o.packages[i] = o.packages[j]; o.packages[j] = lift.pkg; g = j; }
+      if (j >= 0 && j < o.line) { o.packages[i] = o.packages[j]; o.packages[j] = lift.pkg; g = j + lead; }
     } else if (dy > 0) {   // behind More apps: first in line there
       var name = nameOf(lift.pkg);
       o.packages.splice(i, 1);
@@ -1230,7 +1323,7 @@
       lift = null;
       persistOrder();
       renderGrid();
-      g = Math.min(i, gridEls.length - 1);
+      g = Math.min(i + lead, gridEls.length - 1);
       flash(t("moved_more", { name: name }));
     }
     renderGrid();
@@ -1280,6 +1373,7 @@
   function dockHTML(it) {
     var face;
     if (it.kind === "screen") face = '<div class="face tool">' + ICONS.screen + "</div>";
+    else if (it.kind === "input") face = '<div class="face tool">' + ICONS.screen + "</div>";
     else if (it.kind === "more") face = '<div class="face tool">' + ICONS.more + "</div>";
     else if (it.kind === "gear") face = '<div class="face tool">' + ICONS.gear + "</div>";
     else if (it.kind === "smart") face = '<div class="face tool">' + window.smartHome.icon + "</div>";
@@ -1294,6 +1388,7 @@
     if (NIGHT) return dockHTML(it);
     var face;
     if (it.kind === "screen") face = '<div class="face tool">' + ICONS.screen + "</div>";
+    else if (it.kind === "input") face = '<div class="face tool">' + ICONS.screen + "</div>";
     else if (it.kind === "more") face = '<div class="face tool">' + ICONS.more + "</div>";
     else if (it.kind === "gear") face = '<div class="face tool">' + ICONS.gear + "</div>";
     else if (it.kind === "smart") face = '<div class="face tool">' + window.smartHome.icon + "</div>";
@@ -1578,6 +1673,7 @@
     if (a.kind === "more") { expanded = true; renderGrid(); paintFocus(); return; }
     if (a.kind === "gear") { openGear(); return; }
     if (a.kind === "smart") { openSmart(); return; }
+    if (a.kind === "input") { openInputTile(a); return; }
     if (a.kind === "screen") {
       if (!a.ready) { status(a.note || t("screen_not_set")); return; }
       el.classList.add("busy");
@@ -1886,8 +1982,8 @@
   // ---- look, scenes and the household's own photos ----
   var SECS_STEPS = [10, 15, 20, 30, 45, 60, 120];
   function lookRows() {
-    var look = lookSetting() === "classic" ? "classic" : "night", st = sceneState(), rows = [head(t("look_head"))];
-    ["night", "classic"].forEach(function (id) {
+    var look = ["classic", "crypt"].indexOf(lookSetting()) >= 0 ? lookSetting() : "night", st = sceneState(), rows = [head(t("look_head"))];
+    ["night", "crypt", "classic"].forEach(function (id) {
       rows.push({ kind: "choice", key: "look:" + id, label: t("look_" + id), sub: t("look_" + id + "_sub"), checked: look === id,
         act: function () { ST.look = id; keep("tvhome.look", id); saveSettings(); } });
     });
@@ -2551,12 +2647,13 @@
   // Works for remotes that repeat the key while it is held and for ones that only send the press
   // and, later, the release. One press is one action: a pick-up never also opens the app.
   var okDown = false, okHeld = false, okTimer = null;
+  var lastMove = 0;
   function okReset() { okDown = false; okHeld = false; clearTimeout(okTimer); }
 
   // A short navigation click on every arrow and OK, like the TV's own launcher.
   var AC = null, SOUND = true;
   function blip(dx, dy) {
-    if (!SOUND) return;
+    if (!SOUND || CRYPT) return;   // the Crypt look is silent (a tick can upset Bluetooth audio on some TVs)
     // On the TV: Android's own navigation sound (TVOS.tick), the one other TV launchers play.
     // It follows the TV's "system sounds" switch. 1 up, 2 down, 3 left, 4 right, 0 OK.
     if (TV && TV.tick) {
@@ -2600,6 +2697,7 @@
   }
 
   document.addEventListener("keydown", function (e) {
+    if (e.couchTv) return;   // the launcher's BACK, passed round for overlays: tvBack() does the rest
     if (typingKey(e)) return;   // typing a place or a name: the keys belong to the text box
     if (isOk(e)) {
       e.preventDefault();
@@ -2610,7 +2708,10 @@
       return;
     }
     var arrow = arrowOf(e);
-    if (arrow) { blip(arrow[0], arrow[1]); move(arrow[0], arrow[1]); }
+    if (arrow && e.repeat && Date.now() - lastMove < 150) { e.preventDefault(); return; }
+    // ^ a held (or stuck) arrow moves at most about 7 steps a second: when the TV is busy its
+    //   repeats pile up and arrive together, and one press would run several tiles on
+    if (arrow) { lastMove = Date.now(); blip(arrow[0], arrow[1]); move(arrow[0], arrow[1]); }
     else if (isBack(e)) goHome();
     else if (isSettings(e)) { if (!e.repeat) settingsKey(); }   // the remote's own Settings/gear key
     else if (isMenu(e)) { if (!e.repeat) hold(); }   // optional: many remotes have no Menu key
@@ -2639,14 +2740,16 @@
     });
   }
   function sortApps(list) {
-    var rank = function (p) {
+    var rank = function (p, a) {
+      var f = firstRank(a);
+      if (f >= 0) return -1000 + f;
       var i = APP_ORDER.indexOf(p);
       if (i >= 0) return i;
       i = APP_LAST.indexOf(p);
       return i >= 0 ? 2000 + i : 1000;
     };
     return list.filter(function (a) { return HIDDEN.indexOf(a.package) < 0; })
-      .sort(function (a, b) { return rank(a.package) - rank(b.package) || a.name.localeCompare(b.name); });
+      .sort(function (a, b) { return rank(a.package, a) - rank(b.package, b) || a.name.localeCompare(b.name); });
   }
 
   function render() {
@@ -2745,12 +2848,24 @@
 
   // the native side calls these
   // Home on the remote also re-reads the lists, so an order arranged on the phone shows straight away
-  window.tv = { back: goHome, home: function () { if (zone === "settings") closeSettings(); else goHome(); refresh(); },
+  // BACK on the remote arrives here from the launcher (never as a key in the page). It goes round the
+  // page as a GoBack key first, so an overlay that is open (the Crypt look's console, pill choice or
+  // a program) can take it; only if nothing does, BACK goes to the first tile as before.
+  function tvBack() {
+    var e;
+    try { e = new KeyboardEvent("keydown", { key: "GoBack", bubbles: true, cancelable: true }); } catch (x) { return goHome(); }
+    e.couchTv = true;
+    document.dispatchEvent(e);
+    if (!e.defaultPrevented) goHome();
+  }
+  window.tv = { back: tvBack, home: function () { if (zone === "settings") closeSettings(); else goHome(); refresh(); },
     // the remote's Settings/gear key, caught by the launcher natively (MainActivity.dispatchKeyEvent)
     settingsKey: function () { blip(0, 0); settingsKey(); },
-    resume: function () { okReset(); refresh(); if (!OFFLINE) refreshQuick(); refreshWeather(); startVideo(); },
-    // an app is in front: the video background stops until the home is back
-    pause: pauseVideo,
+    resume: function () { okReset(); refresh(); if (!OFFLINE) refreshQuick(); refreshWeather(); startVideo();
+      try { document.dispatchEvent(new Event("couch-resume")); } catch (e) {} },
+    // an app is in front: the video background stops until the home is back. The page is not
+    // hidden on a TV (the WebView never says so), so the looks hear it from these two events.
+    pause: function () { pauseVideo(); try { document.dispatchEvent(new Event("couch-pause")); } catch (e) {} },
     // the launcher's file picker has copied the chosen photos into its own storage (Home settings)
     photosAdded: function (names) { photosAdded(names); },
     // the launcher's updater has news (Updater.kt)
@@ -2765,7 +2880,7 @@
     mark("app-start");
     clock();
     setInterval(clock, 15000);
-    if (NIGHT) {
+    if (NIGHT && !CRYPT) {
       buildScenes();
       // ?scene=fog starts on that scene, for previews (?scene=own: the first of the household's
       // photos; ?scene=<id>: one of your own scenes)
@@ -2774,6 +2889,9 @@
       if (SCENES.length > 1) setInterval(nextScene, SCENE_MS);
       // the clock font must be in before the glass is measured
       if (document.fonts) document.fonts.load("300 10px Antonio").then(function () { glassShown = ""; clock(); });
+    }
+    if (NIGHT) {
+      if (CRYPT && window.crypt) window.crypt.start();
       refreshWeather();
       setInterval(refreshWeather, WX_EVERY * 60000);
     }

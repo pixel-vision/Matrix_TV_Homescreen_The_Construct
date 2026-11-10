@@ -6,6 +6,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// -PcouchOutDir=<folder>: build somewhere else, for a computer where something (a virus scanner, a
+// backup tool) keeps files in the usual build folder open and Gradle cannot clear it.
+(project.findProperty("couchOutDir") as String?)?.takeIf { it.isNotBlank() }?.let { layout.buildDirectory.set(file(it)) }
+
 android {
     namespace = "app.couchtv.launcher"
     compileSdk = 34
@@ -78,7 +82,7 @@ abstract class BundleTvWeb : DefaultTask() {
         src.walkTopDown().filter { it.isFile }.forEach { f ->
             val rel = f.relativeTo(src).path
             // development only, or not part of the page
-            if (rel == "mock.js" || rel.endsWith(".md") || f.name.startsWith(".")) return@forEach
+            if (rel == "mock.js" || rel == "customise.html" || rel.endsWith(".md") || f.name.startsWith(".")) return@forEach
             f.copyTo(File(dest, rel), overwrite = true)
         }
         File(dest, "config.js").writeText("window.COUCH_CONFIG = " + JsonOutput.toJson(publicConfig(configJson.get().asFile)) + ";\n")

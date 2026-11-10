@@ -53,6 +53,7 @@ The round buttons at the top right of the home. Any of these, in the order you l
 | `sleep` | Sleep timer: 15, 30, 60 or 90 minutes, then the TV turns off. | The bridge |
 | `picture` | Flips between the TV's two picture modes in `picture.modes`. | The bridge, ADB, and a `picture` entry |
 | `look` | Flips the home between the Night scenes and the Classic look. This TV remembers the choice. | Nothing |
+| `settings` | Opens the TV's own settings (picture, sound, Wi-Fi), the same as Settings, TV settings on the dock. | Nothing |
 | `input` | couch-tv's own Input menu: the HDMI ports and other inputs Android lists for the TV, by the TV's own names (ARC or eARC shows where the TV's label says so; Android has no public way to read it), with the devices HDMI-CEC found behind each, then Bluetooth and Network. OK switches straight to that input. A TV that lists no inputs keeps today's behaviour: with the bridge it presses the TV's Input key (`KEYCODE_TV_INPUT`); with no bridge the launcher opens the TV's own input screen if it has one. | The TV home launcher, the bridge, or a TV with an input screen |
 
 A button that cannot work right now is left out, the same way the sleep timer always disappeared
@@ -149,11 +150,14 @@ Home settings saves to the same `bridge/data/people.json` the phone uses.
 
 | Key | What it does |
 |---|---|
-| `look` ["night"] | `night`: the scenes with the big glass clock. `classic`: one photo, a grid of app banners. The `look` quick button overrides this on each TV, and `?theme=` overrides both for a preview. |
+| `look` ["night"] | `night`: the scenes with the big glass clock. `crypt`: the same layout in green code rain, the clock and date in a 90s terminal window and square terminal app tiles; the code over the focused app falls in that app's colour and the screen's edges glow in it, so TV backlights that follow the picture (Govee, Hue Sync) follow along (`crypt.js`, `crypt.css`; glass settings do not apply). `classic`: one photo, a grid of app banners. The `look` quick button overrides this on each TV, and `?theme=` overrides both for a preview. |
 | `scenes` [all five] | Which Night scenes take turns, and in what order. Any of `night`, `golden`, `water`, `fog`, `dawn`, and the ids of your own scenes. One scene stays put. |
 | `my_scenes` [none] | Your own scenes from any photo, each with its clock designed: where it sits, its size and font, the date above or below it, light or dark text, and `cutout` for the skyline in front of the clock. Made with `tv-home/tools/make-scene.py`; [MAKE-A-SCENE.md](MAKE-A-SCENE.md) has every key. They take turns after the scenes in `scenes` unless they are listed there. Option A needs the app rebuilt with the scene's pictures inside (that guide says how). |
 | `scene_seconds` [20] | How long each scene shows. 5 or more. |
 | `clock` [the language's usual clock: `24h` in Italian and German, `12h` in the others] | `12h` (5:30 pm) or `24h` (17:30). |
+| `crypt_style` [`slick`] | The Crypt look's style: `slick` (mostly black with a few things lit: two layers of rain that thin out behind the clock and the apps, apps as dim ghosts until chosen, the clock as a left-aligned console readout that types each new minute, a short boot line when the home comes on screen, and after 30 s with no button an idle mode of only the rain, the clock and the network chatter; the first button then only wakes the home) or `classic` (the first version). |
+| `first_apps` [none] | Your favourite apps, first on the dock in this order, by the start of their name as the TV shows it: `["Downloader", "Nuvio", "Spotify", "VLC"]` (`"VLC"` finds "VLC for Android"). They are never tucked behind More apps. An order made later on the TV or the phone wins over it. |
+| `input_tiles` [none] | Dock tiles that switch straight to one of the TV's inputs, after your apps and before Settings: `[{"name": "PC", "input": "HDMI 4"}]`. `input` is matched against the TV's own input names (a port renamed on the TV, or a device HDMI-CEC sees behind it, counts), then by the port's number. Up to 4. Add `"first": true` to put a tile at the very start of the dock instead. If the TV lists no such input, the TV's own input screen opens. |
 | `hide_packages` [none] | Android package names never shown on the home or in More apps, for a maker's own clutter (help apps, file browsers, screen sharing tools). `survey-tv.py` lists every TV app with its package name. For example `["com.example.tvhelp"]`. |
 | `updates` [none: the TV asks once] | The answer to "tell you when a new couch-tv version is out?", asked at setup: `notify` (the TV home looks on GitHub once a week and puts a dot on the gear tile) or `manual` (nothing by itself; Home settings, Updates, Check for updates now). Used only until the TV has an answer; after that the switch in Home settings, Updates wins. Option C has no updates. |
 | `glass` [`off`] | Glass panels behind the clock, Keep watching and the apps: `on` (clear, softly blurred, with a light edge), `lite` (the same panels with no blur, for older or slower TVs) or `off`. Home settings, Look, Glass panels wins over it. |
@@ -329,9 +333,32 @@ already made on the TV.
 
 ## Trying settings without a TV
 
+**The customiser** is the easy way: every look setting on one page, with the real home beside it.
+
+```sh
+python3 scripts/customise.py          # Windows: py -3 scripts\customise.py
+```
+
+It opens `tv-home/web/customise.html` in the browser (served on this computer only, 127.0.0.1:8765).
+Change the people, Scenes or Classic, which scenes take turns and in what order, how long each
+stays, the clock (12 or 24 hour, frosted or liquid glass), glass panels, glass app icons and how
+clear they are, how many apps sit in the dock, the quick buttons, the weather's town (Open-Meteo's
+search), the language, the country and a video background. The preview on the right is
+`index.html?mock=1` with those settings, so it is the real home with sample shows and apps; click
+it and use the arrow keys, Enter and Esc like a remote. **Save** writes the choices into
+`config.json` (starting from `config.example.json` the first time) and leaves every other key
+alone; a person whose name is unchanged keeps their `kid`, `guest` and `app_profiles`. Options A
+and B then hand them to the TV as usual (`apply.sh`, or the bridge). Option C keeps its look in
+the app on the TV: set the same choices in Home settings there. Standard library only, so it runs
+on macOS, Linux and Windows. Opened from any other static server it still previews, and Save
+downloads the choices as a file instead.
+
+**By hand:**
+
 Serve the repo folder with any static server and open the home with `?mock=1`, for example
 `python3 -m http.server 8000`, then `http://127.0.0.1:8000/tv-home/web/index.html?mock=1`.
-`tv-home/web/mock.js` lists the preview settings: `people=4`, `quick=sleep,look,input`,
+`tv-home/web/mock.js` lists the preview settings: `people=4`, `names=Neo,Trinity` (your own names),
+`place=London&lat=51.51&lon=-0.13&tz=Europe/London` (the weather), `quick=sleep,look,input`,
 `picture=1`, `look=classic`, `clock=24h`, `lang=it`, `dock=6`, `scenes=fog,dawn`, `secs=8`,
 `newapp=1`, `offline=1`, `down`, `ha=1` (smart home with a pretend Home Assistant; `ha=down` when
 it is not answering, `ha=scenes` for scenes only), `update=1` (Home settings, Updates, with a pretend

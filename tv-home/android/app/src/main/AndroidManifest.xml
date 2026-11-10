@@ -3,6 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Govee lights (Govee.kt, Crypt look): find them on the Wi-Fi with Govee's LAN scan, a multicast. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Android's Watch Next list: what each app says you are in the middle of (keep watching, no computer needed). -->
     <uses-permission android:name="android.permission.READ_TV_LISTINGS" />
@@ -133,6 +136,18 @@
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
             <meta-data android:name="android.accessibilityservice" android:resource="@xml/key_watch" />
+        </service>
+        <!-- The Crypt screensaver (CryptDream.kt, web/saver.html). Only the system can bind it; apply
+             makes it the TV's screensaver when asked to, undo puts the TV's own one back. -->
+        <service
+            android:name=".CryptDream"
+            android:exported="true"
+            android:label="Crypt"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </service>
         <receiver android:name=".FireWatch$Restore" android:exported="true">
             <intent-filter>

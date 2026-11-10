@@ -12,3 +12,8 @@
 -keepclassmembers class app.couchtv.launcher.Updater$Page {
     @android.webkit.JavascriptInterface <methods>;
 }
+
+# Govee lights: the page calls these through window.TVGOVEE (Govee.kt).
+-keepclassmembers class app.couchtv.launcher.Govee$Page {
+    @android.webkit.JavascriptInterface <methods>;
+}

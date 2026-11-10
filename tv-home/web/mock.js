@@ -5,13 +5,19 @@
 //
 // Presets for previews, all optional (see docs/CONFIG.md for what each setting means):
 //   people=0..8         that many sample people (default: Person 1 and Person 2)
+//   names=Neo,Trinity     your own people, in order, instead of the sample ones (wins over people=)
+//   place=London&lat=51.51&lon=-0.13&tz=Europe/London   the weather's place
 //   quick=sleep,look    tvs[].quick, in order (sleep, picture, look, input)
 //   picture=1           this TV has a picture mode switch (Calibrated and Dynamic)
 //   look=classic        home.look       clock=24h   home.clock     dock=6   home.dock_size
 //   scenes=fog,dawn     home.scenes     secs=8      home.scene_seconds
 //   myscenes=[...]      home.my_scenes, as JSON (docs/MAKE-A-SCENE.md), for your own scenes
 //   lang=it             home.language (en, es, es-MX, it, de, tr); without it, the browser's own language
+//   wx=1                pretend weather (wx=storm, wx=rain, wx=clear for those) (27° partly cloudy, with the details the Crypt look shows)
+//   first=Spotify,VLC   home.first_apps: favourites first on the dock, by the start of their name
+//   tiles=PC:HDMI 4     home.input_tiles: dock tiles that switch to an input (use with inputs=4)
 //   glass=on            home.glass (on, lite: no blur)      video=<link>   home.video_url, an MP4 or MOV
+//   moments=a,b         home.crypt_moments (the Crypt look's random moments)
 //   icons=glass         home.glass_icons: Apple style clear app icons on glass
 //   amount=1..5         home.glass_amount, how clear the glass is (1 frosted, 3 the default, 5 very clear)
 //   clockstyle=liquid   home.clock_style: the Night clock as liquid glass
@@ -45,6 +51,14 @@
       return { id: name.toLowerCase(), name: name };
     });
   }
+  if (arg("names") !== null) {
+    cfg.people = arg("names").split(",").map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 12)
+      .map(function (name, i) { return { id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + i, name: name }; });
+  }
+  if (arg("lat") && arg("lon")) {
+    cfg.weather = { lat: parseFloat(arg("lat")), lon: parseFloat(arg("lon")),
+      place: arg("place") || "", timezone: arg("tz") || cfg.weather.timezone };
+  }
   if (arg("quick") !== null) cfg.tvs[0].quick = arg("quick").split(",").filter(Boolean);
   if (arg("inputs")) {
     window.MOCK_INPUTS = [
@@ -67,6 +81,11 @@
   if (arg("amount")) cfg.home.glass_amount = parseInt(arg("amount"), 10);
   if (arg("clockstyle")) cfg.home.clock_style = arg("clockstyle");
   if (arg("video")) cfg.home.video_url = arg("video");
+  if (arg("wx")) window.MOCK_WEATHER = { temp: 27, code: { storm: 95, rain: 63, clear: 0 }[arg("wx")] || 2, text: "", is_day: true,
+    humidity: 70, wind: 12, high: 31, low: 23, rain: 40 };
+  if (arg("first")) cfg.home.first_apps = arg("first").split(",");
+  if (arg("tiles")) cfg.home.input_tiles = arg("tiles").split(",").map(function (x) { var p = x.split(":"); return { name: p[0], input: p[1] || p[0], first: p[2] === "first" }; });
+  if (arg("moments")) cfg.home.crypt_moments = arg("moments").split(",");   // the Crypt look's random moments
   window.COUCH_CONFIG = cfg;
 
   // ---------- the launcher's updater (Updater.kt), for ?update= ----------

@@ -239,13 +239,36 @@ def _home(h):
     out = {
         # Android package names never shown on the home or in More apps (a maker's own clutter).
         "hide_packages": [p for p in dict.fromkeys(hide) if isinstance(p, str) and re.fullmatch(r"[A-Za-z0-9_.]{1,200}", p)],
-        "look": h.get("look") if h.get("look") in ("night", "classic") else "night",
+        "look": h.get("look") if h.get("look") in ("night", "classic", "crypt") else "night",
         "scenes": scenes or list(SCENE_IDS),
         "scene_seconds": _int(h.get("scene_seconds"), 20, 5, 3600),
         "dock_size": _int(h.get("dock_size"), DOCK_LIMIT, 1, DOCK_LIMIT),
         # your own scenes, in backgrounds/mine/ (docs/MAKE-A-SCENE.md)
         "my_scenes": mine,
     }
+    # the Crypt look's options (docs/CONFIG.md): its style, the preview extras, the Govee lights
+    for k, allowed in (("crypt_style", ("slick", "classic")), ("crypt_saver", ("spell",)), ("crypt_fight", ("saver", "window"))):
+        if h.get(k) in allowed:
+            out[k] = h[k]
+    for k in ("crypt_panels", "crypt_ascii", "crypt_sound", "govee"):
+        if isinstance(h.get(k), bool):
+            out[k] = h[k]
+    # the Crypt look's random moments, picked from these (the Operator console has them all anyway)
+    mo = h.get("crypt_moments") if isinstance(h.get("crypt_moments"), list) else []
+    mo = [m for m in mo if m in ("vase", "bricks", "code", "phone", "sentinels", "agentface", "reddress", "rabbit", "cat")]
+    if mo:
+        out["crypt_moments"] = mo
+    # the household's favourite apps, by the start of their name, first on the dock in this order
+    first = h.get("first_apps") if isinstance(h.get("first_apps"), list) else []
+    first = [n.strip()[:40] for n in first if isinstance(n, str) and n.strip()][:10]
+    if first:
+        out["first_apps"] = first
+    # dock tiles that switch to one of the TV's inputs: [{"name": "PC", "input": "HDMI 4"}]
+    tiles = h.get("input_tiles") if isinstance(h.get("input_tiles"), list) else []
+    tiles = [{"name": str(x["name"]).strip()[:20], "input": str(x["input"]).strip()[:40], "first": x.get("first") is True} for x in tiles
+             if isinstance(x, dict) and str(x.get("name", "")).strip() and str(x.get("input", "")).strip()][:4]
+    if tiles:
+        out["input_tiles"] = tiles
     # Only when config.json gives them. Without "language" the TV home speaks the TV's own language
     # (English if it is not one of LANGUAGES), and without "clock" it uses that language's usual
     # clock (24 hour in Italian and German, else 12 hour). Home settings on the TV win over both.
@@ -278,7 +301,7 @@ def _home(h):
 HOME = _home(CONFIG.get("home"))
 
 # ---------- quick settings (per TV) and picture modes ----------
-QUICK_IDS = ["sleep", "picture", "look", "input"]
+QUICK_IDS = ["sleep", "picture", "look", "input", "settings", "saver"]
 
 
 def quick_for(tv_cfg):

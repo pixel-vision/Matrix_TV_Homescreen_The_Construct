@@ -78,8 +78,9 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         // Lets a computer inspect the page over ADB (chrome://inspect). Only reachable with ADB access.
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
-        root = FrameLayout(this).apply { setBackgroundColor(GROUND) }
+        root = FrameLayout(this).apply { setBackgroundColor(ground()) }
         setContentView(root)
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(ground()))
         hideSystemBars()
         intent?.let { readExtras(it) }
         io.execute { warmApps() }
@@ -93,6 +94,14 @@ class MainActivity : Activity() {
                     main.post { if (loadFailed || offline) connect() }
                 }
             })
+        // The TV switching on (its screen coming back from standby): the page can greet it (the
+        // Crypt look's start-up screen). Only the event, nothing else is read.
+        registerReceiver(object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context, i: Intent) {
+                val on = i.action == Intent.ACTION_SCREEN_ON   // and off: standby, so nothing runs on in the dark
+                js("document.dispatchEvent(new Event('couch-screen-" + (if (on) "on" else "off") + "'))")
+            }
+        }, android.content.IntentFilter(Intent.ACTION_SCREEN_ON).apply { addAction(Intent.ACTION_SCREEN_OFF) })
         // Load the last bridge that worked straight away; only probe the others if it fails.
         val saved = prefs.getString("bridge", null)
         if (saved != null) showWeb(saved) else connect()
@@ -257,8 +266,11 @@ class MainActivity : Activity() {
         main.postDelayed({ if (!pageReady) showFallback() }, SLOW_MS)
     }
 
+    /** The colour behind the page: a look can ask for its own (the Crypt look: black), kept for next time. */
+    private fun ground(): Int = prefs.getInt("ground", GROUND)
+
     private fun makeWebView(): WebView = WebView(this).apply {
-        setBackgroundColor(GROUND)
+        setBackgroundColor(ground())
         isFocusable = true
         isFocusableInTouchMode = true
         overScrollMode = View.OVER_SCROLL_NEVER
@@ -272,6 +284,7 @@ class MainActivity : Activity() {
         addJavascriptInterface(Native(), "TVOS")
         addJavascriptInterface(HomeAssistant.Page(this@MainActivity, this), "TVHA")   // smart home, see HomeAssistant.kt
         addJavascriptInterface(Updater.Page(this@MainActivity, this), "TVUP")   // updates from GitHub releases, see Updater.kt
+        addJavascriptInterface(Govee.Page(this@MainActivity), "TVGOVEE")   // Govee lights on the Wi-Fi (Crypt look), see Govee.kt
         webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String) {
                 if (!loadFailed && url.startsWith("http")) {
@@ -489,6 +502,41 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun openSettings(): Boolean = start(Intent(Settings.ACTION_SETTINGS))
+
+        /** The look's own background colour (#rrggbb), shown behind the page while it is drawn, for
+         *  example coming back from an app. Kept, so the next start has it from the first frame. */
+        @JavascriptInterface
+        fun ground(hex: String) {
+            val c = try { Color.parseColor(hex) } catch (e: Exception) { return }
+            if (Color.alpha(c) != 255) return
+            prefs.edit().putInt("ground", c).apply()
+            runOnUiThread {
+                root.setBackgroundColor(c)
+                window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(c))
+                web?.setBackgroundColor(c)
+            }
+        }
+
+        /** What the Crypt look's SYSTEM panel shows: the panel's own resolution and refresh rate,
+         *  the model, Android, memory, processor cores and how long the TV has been on. Read only. */
+        @JavascriptInterface
+        fun system(): String = try {
+            val o = JSONObject()
+            @Suppress("DEPRECATION") val d = windowManager.defaultDisplay
+            val best = d.supportedModes.maxByOrNull { it.physicalWidth.toLong() * it.physicalHeight }
+            if (best != null) o.put("panel", "${best.physicalWidth}x${best.physicalHeight}")
+            o.put("hz", Math.round(d.refreshRate))
+            val m = DisplayMetrics().also { @Suppress("DEPRECATION") d.getRealMetrics(it) }
+            o.put("ui", "${m.widthPixels}x${m.heightPixels}")
+            o.put("model", (Build.MANUFACTURER + " " + Build.MODEL).trim().take(40))
+            o.put("android", Build.VERSION.RELEASE)
+            val am = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
+            val mi = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+            o.put("memTotal", mi.totalMem / 1048576).put("memFree", mi.availMem / 1048576)
+            o.put("cores", Runtime.getRuntime().availableProcessors())
+            o.put("uptime", android.os.SystemClock.elapsedRealtime() / 60000)
+            o.toString()
+        } catch (e: Exception) { "{}" }
 
         /** Holding OK on an app, "Uninstall": Android's own remove dialog. Never ourselves.
          *  On TVs with no remove dialog, falls back to the app's details screen (it has Uninstall).

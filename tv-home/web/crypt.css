@@ -1,0 +1,567 @@
+/* The Crypt look (home.look "crypt"): green code rain and a 90s terminal. Only applies
+   with html.theme-crypt, which sits on top of theme-night (the same layout: clock, Keep watching,
+   the dock). crypt.js draws the rain, the clock's window, the edge glow and the screen's scanlines.
+   Font: VT323 (Peter Hull), SIL Open Font Licence, fonts/OFL-VT323.txt. */
+@font-face { font-family: "VT323"; font-display: block; src: url(fonts/vt323-latin.woff) format("woff"); }
+
+html.theme-crypt {
+  --c-green: #39ff7a; --c-dim: rgba(57, 255, 122, 0.5); --c-faint: rgba(57, 255, 122, 0.18);
+  --c-ink: #010603; --c-bone: #dff5e2;
+  --c-glow: 0 0 0.375rem rgba(57, 255, 122, 0.9), 0 0 1.5rem rgba(57, 255, 122, 0.45);
+  --c-term: "VT323", "Courier New", monospace;
+}
+html.theme-crypt, html.theme-crypt body { background: #000; }
+/* Nothing may reach past the screen. A Keep watching row longer than the screen made the TV's
+   WebView widen its layout viewport, and every fixed layer (the clock window, the quick buttons,
+   the network log) was then placed against that wider page, off to the right and down. */
+html.theme-crypt, html.theme-crypt body { overflow: hidden; width: 100vw; height: 100vh; }
+html.theme-crypt .home { overflow: hidden; width: 100vw; }
+html.theme-crypt .scenes, html.theme-crypt .bg, html.theme-crypt .bgvid { display: none; }
+html.theme-crypt .scrim { background: linear-gradient(180deg, rgba(0, 0, 0, 0) 70%, rgba(0, 0, 0, 0.6) 100%); }
+
+/* ---------- the layers crypt.js adds ---------- */
+.crypt-rain, .crypt-frame, .crypt-edge, .crypt-crt { position: fixed; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; }
+.crypt-rain { width: 100vw; height: 100vh; opacity: 0.8; }
+.crypt-frame svg { width: 100%; height: 100%; }
+.crypt-frame .nave { fill: rgba(0, 0, 0, 0.7); stroke: none; }
+.crypt-frame .lines { fill: none; stroke: var(--c-green); stroke-width: 3; opacity: 0.7; filter: drop-shadow(0 0 6px rgba(57, 255, 122, 0.8)); }
+.crypt-frame .lines .thin { stroke-width: 1.5; opacity: 0.6; }
+.crypt-frame .bar { fill: rgba(57, 255, 122, 0.16); }
+.crypt-frame .btn { fill: rgba(0, 0, 0, 0.6); }
+.crypt-frame text { fill: var(--c-green); stroke: none; font-family: "VT323", monospace; font-size: 34px; letter-spacing: 2px; }
+/* the screen's edges: green, or the focused app's colour, for lights that follow the picture */
+.crypt-edge { transition: box-shadow 600ms ease-out; }
+html.theme-crypt .quick-note { font-family: var(--c-term); font-size: 1.875rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c-green); text-shadow: var(--c-glow); }
+/* network chatter beside the clock window (crypt.js): faint, so it reads as background */
+.crypt-log {
+  position: fixed; top: 10rem; width: 26rem; overflow: hidden; pointer-events: none; white-space: nowrap;
+  font-family: var(--c-term); font-size: 1.3125rem; line-height: 1.75rem; color: var(--c-green); opacity: 0.42;
+  text-shadow: 0 0 0.375rem rgba(57, 255, 122, 0.6);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, #000 45%); mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, #000 45%);
+}
+.crypt-log.left { left: var(--safe-x); }
+.crypt-log.right { right: var(--safe-x); top: 12rem; text-align: right; }
+.crypt-log b { display: block; font-weight: 400; color: #b9ffcf; opacity: 0.9; margin-bottom: 0.25rem; letter-spacing: 0.08em; }
+.crypt-log .new { color: #d8ffe4; }
+/* a CRT: fine scanlines, darker corners, a faint flicker */
+.crypt-crt {
+  z-index: 50;
+  background:
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 0.125rem, rgba(0, 0, 0, 0.22) 0.125rem, rgba(0, 0, 0, 0.22) 0.25rem),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.55) 100%);
+  animation: crypt-flicker 5s steps(1) infinite;
+}
+@keyframes crypt-flicker { 0%, 100% { opacity: 1; } 47% { opacity: 0.93; } 48% { opacity: 1; } 81% { opacity: 0.96; } }
+
+/* ---------- the clock and date: a phosphor terminal window ---------- */
+html.theme-crypt .time {
+  display: block; position: fixed; left: 0; right: 0; top: 12.75rem; text-align: center;
+  font-family: var(--c-term); font-weight: 400; font-size: 17rem; line-height: 1; letter-spacing: 0;
+  color: #b9ffcf; text-shadow: var(--c-glow);
+}
+html.theme-crypt .time small { font-size: 4rem; margin-left: 1rem; color: var(--c-green); }
+html.theme-crypt .time::after { content: "_"; font-size: 0.6em; margin-left: 0.1em; color: var(--c-green); animation: crypt-blink 1.1s steps(1) infinite; }
+@keyframes crypt-blink { 50% { opacity: 0; } }
+html.theme-crypt .date, .scene-fog.theme-crypt .date {
+  top: 28.25rem; left: 0; right: 0; text-align: center;
+  font-family: var(--c-term); font-size: 3.5rem; line-height: 4rem; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--c-bone); text-shadow: var(--c-glow);
+}
+html.theme-crypt .date .wx { display: none; }   /* the readout below says it all */
+html.theme-crypt .date .cwx {
+  display: block; white-space: pre; margin-top: 0.75rem; font-size: 1.875rem; line-height: 2.375rem; letter-spacing: 0.05em;
+  color: var(--c-green); text-shadow: var(--c-glow);
+}
+html.theme-crypt .date .cwx i { font-style: normal; opacity: 0.6; }
+
+/* ---------- panels: 90s terminal windows, square, green edged ---------- */
+html.theme-crypt .people, html.theme-crypt .qbtn, html.theme-crypt .grid, html.theme-crypt .ncard, html.theme-crypt .people-pop, html.theme-crypt .hint.on, html.theme-crypt .sleep-menu {
+  background: rgba(1, 8, 4, 0.82); -webkit-backdrop-filter: none; backdrop-filter: none;
+  border-radius: 0; box-shadow: inset 0 0 0 0.125rem var(--c-dim), 0 0 1.5rem rgba(57, 255, 122, 0.12);
+}
+html.theme-crypt .person, html.theme-crypt .qbtn, html.theme-crypt .prow, html.theme-crypt .sleep-menu .opt, html.theme-crypt .hint.on {
+  font-family: var(--c-term); font-weight: 400; font-size: 1.875rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c-green); border-radius: 0;
+}
+html.theme-crypt .person.on, html.theme-crypt .person.focus, html.theme-crypt .qbtn.focus, html.theme-crypt .prow.focus, html.theme-crypt .sleep-menu .opt.focus {
+  background: var(--c-green); color: var(--c-ink); box-shadow: 0 0 1.25rem rgba(57, 255, 122, 0.7);
+}
+html.theme-crypt .person.focus:not(.on) { background: rgba(57, 255, 122, 0.25); color: var(--c-green); }
+html.theme-crypt .avatar { border-radius: 0; background: var(--c-ink) !important; color: var(--c-green); font-family: var(--c-term); box-shadow: inset 0 0 0 0.125rem var(--c-green); }
+html.theme-crypt .people.head { border-radius: 0; }
+html.theme-crypt .people.head.focus { box-shadow: 0 0 0 0.1875rem var(--c-green), 0 0 1.5rem rgba(57, 255, 122, 0.7); }
+
+/* Keep watching: a prompt, then cards like small terminal windows */
+html.theme-crypt .shelf-head h2 { font-family: var(--c-term); font-weight: 400; font-size: 2.125rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-green); text-shadow: var(--c-glow); }
+html.theme-crypt .shelf-head h2::before { content: "C:\\> "; }
+html.theme-crypt .ncard { padding: 0.875rem; }
+html.theme-crypt .ncard { transition: transform 240ms var(--ease), box-shadow 240ms var(--ease); }
+/* the heading rises out of the way of a focused, enlarged card */
+html.theme-crypt .shelf-head { transition: transform 240ms var(--ease); }
+html.theme-crypt .shelf:has(.ncard.focus) .shelf-head { transform: translateY(-1.75rem); }
+html.theme-crypt .ncard .thumb { border-radius: 0; filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(3) brightness(0.7); }
+html.theme-crypt .ncard .nap, html.theme-crypt .ncard b, html.theme-crypt .ncard i { font-family: var(--c-term); font-weight: 400; color: var(--c-green); }
+html.theme-crypt .ncard .nap { font-size: 1.5rem; opacity: 0.8; }
+html.theme-crypt .ncard .nap img { border-radius: 0; filter: grayscale(1) brightness(1.4); }
+html.theme-crypt .ncard b { font-size: 2.25rem; color: var(--c-bone); }
+html.theme-crypt .ncard i { font-size: 1.625rem; }
+html.theme-crypt .ncard .nbar { border-radius: 0; background: var(--c-faint); }
+html.theme-crypt .ncard .nbar i { background: var(--c-green); box-shadow: var(--c-glow); }
+html.theme-crypt .ncard.focus { position: relative; z-index: 3; transform: scale(1.28); box-shadow: inset 0 0 0 0.1875rem var(--c-green), 0 0 2.5rem rgba(57, 255, 122, 0.55); }
+html.theme-crypt .ncard.focus .thumb { filter: none; }
+
+/* ---------- the dock: square terminal tiles; each app glows green until it is chosen ---------- */
+html.theme-crypt .grid { padding: 1.75rem 1.75rem 1.375rem; background: rgba(1, 8, 4, 0.5); }
+html.theme-crypt .grid::before {
+  content: "C:\\APPS>"; position: absolute; left: 1rem; top: -1.25rem; padding: 0 0.5rem; background: #000;
+  font-family: var(--c-term); font-size: 1.625rem; line-height: 2.25rem; letter-spacing: 0.08em; color: var(--c-green); text-shadow: var(--c-glow);
+}
+html.theme-crypt .grid { position: relative; }
+html.theme-crypt .app { filter: drop-shadow(0 0 0.1875rem rgba(57, 255, 122, 0.7)); }
+html.theme-crypt .app .face, html.theme-crypt .app .face.word, html.theme-crypt .app .face.tool {
+  border-radius: 0; box-shadow: inset 0 0 0 0.125rem var(--c-dim); animation: none;
+  background: radial-gradient(ellipse at 50% 70%, #0a2a14 0%, #020a05 75%);
+}
+html.theme-crypt .app .face::after { display: none; }
+html.theme-crypt .app:not(.focus) .face img, html.theme-crypt .app .face img {
+  position: absolute; left: 14%; top: 14%; width: 72%; height: 72%; border-radius: 0;
+  filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(4) brightness(0.8) contrast(1.25);
+}
+html.theme-crypt .app .face.word { font-family: var(--c-term); font-weight: 400; font-size: 1.375rem; color: var(--c-green); padding: 0 0.25rem; }
+html.theme-crypt .app .face.tool svg { stroke: var(--c-green); }
+html.theme-crypt .app .label {
+  font-family: var(--c-term); font-weight: 400; font-size: 1.75rem; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--c-green); text-shadow: var(--c-glow);
+}
+/* chosen: the tile lights up, the icon decodes into its own colours */
+html.theme-crypt .app.focus { transform: scale(1.5) translateY(-2.25rem); z-index: 3; filter: drop-shadow(0 0 0.375rem #fff) drop-shadow(0 0 1.25rem rgba(57, 255, 122, 0.9)); }
+html.theme-crypt .app.focus .face { background: radial-gradient(ellipse at 50% 70%, #1c5a30 0%, #04140a 80%); box-shadow: inset 0 0 0 0.1875rem var(--c-green); }
+html.theme-crypt .app.focus .face img { filter: none; }
+html.theme-crypt .app.focus.crypt-in .face img { animation: crypt-glitch 420ms steps(2) 1; }
+@keyframes crypt-glitch {
+  0% { filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(4); transform: translateX(-0.375rem); clip-path: inset(10% 0 55% 0); }
+  25% { filter: hue-rotate(90deg) saturate(3); transform: translateX(0.375rem); clip-path: inset(50% 0 10% 0); }
+  50% { filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(4); transform: translateX(-0.25rem); clip-path: inset(0 0 30% 0); }
+  75% { filter: none; transform: translateX(0.125rem); clip-path: none; }
+  100% { filter: none; transform: none; clip-path: none; }
+}
+/* OK on an app: a white flash as it opens */
+html.theme-crypt .app.crypt-go { filter: drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 3rem #fff); }
+html.theme-crypt .app.crypt-go .face { background: #d8ffe4; }
+html.theme-crypt .app.lifted .face { animation: wiggle 0.32s ease-in-out infinite alternate; }
+html.theme-crypt .app .dot { border-radius: 0; background: var(--c-green); box-shadow: var(--c-glow); }
+
+@media (prefers-reduced-motion: reduce) {
+  .crypt-crt, html.theme-crypt .time::after, html.theme-crypt .app.focus.crypt-in .face img { animation: none; }
+}
+
+/* the screensaver (saver.html): no network chatter, only the rain and the drifting window */
+html.saver .crypt-log { display: none; }
+
+/* ================= Slick (the default; home.crypt_style "classic" for the first version) =================
+   Mostly black with a few things lit: fewer boxes, thin lines, quiet apps until one is chosen, less
+   glow, the clock as a left-aligned console readout, a boot line on Home, and an idle mode. */
+html.crypt-slick { --c-glow: 0 0 0.25rem rgba(57, 255, 122, 0.55); --c-tint: rgba(57, 255, 122, 0.85); }
+
+/* fewer boxes: the cards and the apps float on the black; one thin line where a line is needed */
+html.crypt-slick .grid, html.crypt-slick .ncard { background: transparent; box-shadow: none; }
+html.crypt-slick .grid::before { background: transparent; left: 1.75rem; top: -1.5rem; padding: 0; opacity: 0.65; }
+html.crypt-slick .people, html.crypt-slick .qbtn { background: rgba(0, 0, 0, 0.6); box-shadow: inset 0 0 0 0.0625rem var(--c-dim); }
+html.crypt-slick .crypt-frame .lines { stroke-width: 2; filter: none; opacity: 0.85; }
+html.crypt-slick .crypt-frame .lines .thin, html.crypt-slick .crypt-frame .btn,
+html.crypt-slick .crypt-frame .lines path, html.crypt-slick .crypt-frame .lines rect:not(:first-child):not(.bar) { display: none; }
+html.crypt-slick .crypt-frame .bar { fill: rgba(57, 255, 122, 0.1); }
+html.crypt-slick .crypt-frame .nave { fill: rgba(0, 0, 0, 0.82); }
+
+/* Keep watching: text and picture only, a thin frame on the one chosen */
+html.crypt-slick .ncard .thumb { opacity: 0.55; }
+html.crypt-slick .ncard.focus { background: rgba(0, 0, 0, 0.88); box-shadow: inset 0 0 0 0.0625rem var(--c-green), 0 0 2rem rgba(57, 255, 122, 0.3); }
+html.crypt-slick .ncard.focus .thumb { opacity: 1; }
+html.crypt-slick .ncard .nbar i { box-shadow: none; }
+
+/* quiet until chosen: dim green ghosts of the icons; the chosen one in full colour, glowing in its own colour */
+html.crypt-slick .app { filter: none; }
+html.crypt-slick .app:not(.focus) .face, html.crypt-slick .app:not(.focus) .face.tool, html.crypt-slick .app:not(.focus) .face.word {
+  background: transparent; box-shadow: inset 0 0 0 0.0625rem rgba(57, 255, 122, 0.28);
+}
+html.crypt-slick .app:not(.focus) .face img { opacity: 0.42; filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(2.5) brightness(1.1); }
+html.crypt-slick .app:not(.focus) .face.tool svg, html.crypt-slick .app:not(.focus) .face.word { opacity: 0.55; }
+html.crypt-slick .app.focus { filter: drop-shadow(0 0 1.25rem var(--c-tint)); }
+html.crypt-slick .app.focus .face { background: #000; box-shadow: inset 0 0 0 0.0625rem rgba(255, 255, 255, 0.9); }
+html.crypt-slick .app .label { text-shadow: none; }
+
+/* the clock: a left-aligned console readout in its window */
+html.crypt-slick .time {
+  left: 36rem; right: auto; top: 12.75rem; text-align: left; font-size: 13rem; line-height: 0.9;
+  text-shadow: 0 0 0.5rem rgba(57, 255, 122, 0.8), 0 0 2rem rgba(57, 255, 122, 0.35);
+}
+html.crypt-slick .time::before {
+  content: "> TIME"; display: block; margin-bottom: 0.75rem; font-size: 1.875rem; line-height: 2rem; letter-spacing: 0.12em;
+  color: var(--c-green); opacity: 0.7; text-shadow: none;
+}
+html.crypt-slick .date, html.crypt-slick.scene-fog .date {
+  left: 36rem; right: auto; top: 27.25rem; text-align: left; font-size: 2.25rem; line-height: 2.75rem; letter-spacing: 0.08em;
+  color: var(--c-bone); text-shadow: none;
+}
+html.crypt-slick .date .dline::before { content: "> DATE  "; color: var(--c-green); opacity: 0.7; }
+html.crypt-slick .date .cwx { margin-top: 0.25rem; font-size: 2.25rem; line-height: 2.75rem; letter-spacing: 0.08em; text-shadow: none; }
+html.crypt-slick .date .cwx i { opacity: 0.7; }
+/* a new minute types itself out */
+html.crypt-slick .time.crypt-type { animation: crypt-type 700ms steps(6) 1; }
+@keyframes crypt-type { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* a boot line when the home comes on screen */
+.crypt-boot {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 62; pointer-events: none;   /* over everything: plain black */
+  padding: 9rem 0 0 12rem; background: #000; opacity: 0; visibility: hidden; transition: opacity 350ms ease, visibility 0s 350ms;
+  font-family: var(--c-term); font-size: 2.5rem; line-height: 3.25rem; letter-spacing: 0.08em; color: var(--c-green);
+  text-shadow: 0 0 0.375rem rgba(57, 255, 122, 0.7);
+}
+.crypt-boot.on { opacity: 1; visibility: visible; transition: none; }
+
+/* idle: only the rain, the clock and the network chatter */
+html.crypt-slick .shelf, html.crypt-slick .apps, html.crypt-slick .people-wrap, html.crypt-slick .quick { transition: opacity 900ms ease; }
+html.crypt-slick.crypt-idle .shelf, html.crypt-slick.crypt-idle .apps, html.crypt-slick.crypt-idle .people-wrap,
+html.crypt-slick.crypt-idle .quick { opacity: 0; }
+html.crypt-slick .crypt-log { opacity: 0; transition: opacity 1.2s ease; }
+html.crypt-slick.crypt-idle .crypt-log { opacity: 0.42; }
+html.crypt-slick.crypt-logshow .crypt-log { opacity: 0.9; }   /* the session report, after an app */
+
+@media (prefers-reduced-motion: reduce) {
+  html.crypt-slick .time.crypt-type { animation: none; }
+}
+
+/* the command line under the readout: what the remote is on, typed as a command */
+.crypt-cmd {
+  position: fixed; left: 36rem; top: 33.5rem; width: 50rem; pointer-events: none; white-space: pre; overflow: hidden;
+  font-family: var(--c-term); font-size: 2.25rem; line-height: 2.75rem; letter-spacing: 0.08em; color: var(--c-green);
+}
+.crypt-cmd::before { content: "C:\\> "; opacity: 0.7; }
+.crypt-cmd::after { content: "_"; animation: crypt-blink 1.1s steps(1) infinite; }
+html.crypt-idle .crypt-cmd { opacity: 0.5; }
+.crypt-cmd.wrap { white-space: pre-wrap; }
+
+/* lightning (a storm in the forecast): a white flash and a shake */
+.crypt-flash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 45; pointer-events: none; background: #eef6ff; opacity: 0; }
+.crypt-flash.on { animation: crypt-flash 260ms ease-out 1; }
+@keyframes crypt-flash { 0% { opacity: 0.85; } 30% { opacity: 0.15; } 45% { opacity: 0.6; } 100% { opacity: 0; } }
+html.crypt-glitch .crypt-frame, html.crypt-glitch .time, html.crypt-glitch .date, html.crypt-glitch .crypt-cmd, html.crypt-glitch .crypt-rain {
+  animation: crypt-shake 260ms steps(3) 3;
+}
+@keyframes crypt-shake {
+  0% { transform: translate(0, 0); } 33% { transform: translate(-0.5rem, 0.1875rem); }
+  66% { transform: translate(0.375rem, -0.125rem); } 100% { transform: translate(0, 0); }
+}
+
+/* the red pill (up up down down left right left right): the whole look turns red */
+html.crypt-red {
+  --c-green: #ff3346; --c-dim: rgba(255, 51, 70, 0.5); --c-faint: rgba(255, 51, 70, 0.18); --c-bone: #ffe1e4;
+  --c-glow: 0 0 0.25rem rgba(255, 51, 70, 0.6);
+}
+html.crypt-red .time { color: #ffc4c9; text-shadow: 0 0 0.5rem rgba(255, 51, 70, 0.85), 0 0 2rem rgba(255, 51, 70, 0.4); }
+html.crypt-red .crypt-log b { color: #ffc4c9; }
+html.crypt-red .crypt-log { text-shadow: 0 0 0.375rem rgba(255, 51, 70, 0.6); }
+html.crypt-red .crypt-frame .bar { fill: rgba(255, 51, 70, 0.12); }
+html.crypt-red.crypt-slick .app:not(.focus) .face { box-shadow: inset 0 0 0 0.0625rem rgba(255, 51, 70, 0.3); }
+html.crypt-red.crypt-slick .app:not(.focus) .face img { filter: grayscale(1) sepia(1) hue-rotate(-50deg) saturate(3) brightness(1); }
+html.crypt-red .crypt-crt { background:
+  repeating-linear-gradient(180deg, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 0.125rem, rgba(0, 0, 0, 0.28) 0.125rem, rgba(0, 0, 0, 0.28) 0.25rem),
+  radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 55%, rgba(40, 0, 0, 0.6) 100%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .crypt-flash.on, html.crypt-glitch .crypt-frame, html.crypt-glitch .time, html.crypt-glitch .date,
+  html.crypt-glitch .crypt-cmd, html.crypt-glitch .crypt-rain, .crypt-cmd::after { animation: none; }
+}
+
+/* (preview) ASCII Keep watching: the progress as [██████░░░░] 61%, the picture sweeps in when chosen */
+html.crypt-ascii .ncard .nbar { display: none; }
+html.crypt-ascii .ncard .abar { display: block; margin-top: 0.375rem; font-family: var(--c-term); font-size: 1.625rem; letter-spacing: 0.02em; color: var(--c-green); white-space: pre; }
+html.crypt-ascii .ncard.focus .thumb { animation: crypt-sweep 520ms steps(8) 1; }
+@keyframes crypt-sweep { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* (preview) the clock window takes turns: FORECAST and SYSTEM in place of the time */
+.crypt-panel {
+  position: fixed; left: 36rem; top: 13.25rem; width: 50rem; height: 19.5rem; pointer-events: none; opacity: 0; transition: opacity 500ms ease;
+  font-family: var(--c-term); color: var(--c-green); font-size: 2rem; line-height: 2.375rem; letter-spacing: 0.06em; overflow: hidden;
+}
+html.crypt-p1 .crypt-panel { opacity: 1; }
+/* the window's own content steps aside; the command line underneath stays */
+html.crypt-p1 .time, html.crypt-p1 .date { opacity: 0; transition: opacity 500ms ease; }
+.crypt-panel .phead { font-size: 1.875rem; letter-spacing: 0.12em; opacity: 0.85; margin-bottom: 0.75rem; }
+.crypt-panel .pcols { display: flex; gap: 1.5rem; }
+.crypt-panel .pcols .psys { font-size: 1.625rem; line-height: 2.5rem; letter-spacing: 0.02em; }
+.crypt-panel .pbad, .crypt-panel .ptrace i { font-style: normal; color: #ff5566; text-shadow: 0 0 0.5rem rgba(255, 40, 60, 0.8); }
+.crypt-panel .psys.ptrace { font-size: 1.75rem; line-height: 2.3rem; }   /* all seven trace lines fit, ANSWER IT included */
+.crypt-panel .psys { margin: 0; font-family: var(--c-term); font-size: 2.25rem; line-height: 3rem; white-space: pre; color: var(--c-green); }
+
+/* ---------- the red pill ---------- */
+.crypt-take {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 60; background: #000; opacity: 0; visibility: hidden;
+  display: flex; flex-direction: column; justify-content: flex-start; padding: 24vh 0 6vh 14rem; overflow: hidden; pointer-events: none;
+  font-family: var(--c-term); color: #4fd982; font-size: 6.5rem; line-height: 8.5rem; letter-spacing: 0.04em;   /* soft: sharp on camera */
+  text-shadow: 0 0 0.35rem rgba(57, 255, 122, 0.35); transition: opacity 600ms ease, visibility 0s 600ms;
+}
+.crypt-take.on { opacity: 1; visibility: visible; transition: none; }
+html.crypt-red .crypt-take { color: #e0606f; text-shadow: 0 0 0.35rem rgba(255, 40, 60, 0.35); }
+.crypt-take .tline:last-child::after { content: "\2588"; margin-left: 0.5rem; animation: crypt-blink 0.9s steps(1) infinite; }
+.crypt-take .tline { white-space: pre; }
+.crypt-shard { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 55; pointer-events: none; }
+html.crypt-shattered .dock, html.crypt-shattered .grid, html.crypt-shattered .shelf, html.crypt-shattered .time,
+html.crypt-shattered .date, html.crypt-shattered .crypt-cmd, html.crypt-shattered .quick, html.crypt-shattered .crypt-log,
+html.crypt-shattered .shelves { opacity: 0 !important; transition: none !important; }
+.dock, .grid, .shelf, .shelves, .quick { transition: opacity 900ms ease; }
+html.crypt-red.crypt-slick .time::before { content: "> SYSTEM COMPROMISED"; color: #ff5566; animation: crypt-blink 2.4s steps(1) infinite; }
+html.crypt-red .app.focus .label::after { content: "  [DECRYPTED]"; color: #ff5566; letter-spacing: 0.1em; font-family: var(--c-term); }
+html.crypt-red .crypt-log div.new { color: #ffc4c9; }
+.crypt-agent {
+  position: fixed; left: 0; right: 0; top: 40vh; z-index: 58; text-align: center; pointer-events: none;
+  font-family: var(--c-term); font-size: 7rem; line-height: 8rem; color: #fff; letter-spacing: 0.12em;
+  background: rgba(120, 0, 10, 0.55); padding: 2rem 0; border-top: 0.25rem solid #ff2a3c; border-bottom: 0.25rem solid #ff2a3c;
+  text-shadow: 0 0 1rem #ff2a3c, 0 0 3rem #ff2a3c; animation: crypt-agent 2.3s steps(1) 1 forwards;
+}
+.crypt-agent small { display: block; font-size: 2.25rem; line-height: 3rem; letter-spacing: 0.2em; color: #ffc4c9; }
+@keyframes crypt-agent { 0% { opacity: 1; } 15% { opacity: 0; } 25% { opacity: 1; } 40% { opacity: 0; } 50% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
+
+.crypt-choice {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 60; background: rgba(0, 0, 0, 0.97);
+  opacity: 0; visibility: hidden; transition: opacity 400ms ease, visibility 0s 400ms; pointer-events: none;
+  font-family: var(--c-term); color: #c8ffd8; text-align: center;
+}
+.crypt-choice.on { opacity: 1; visibility: visible; transition: opacity 400ms ease; }
+.crypt-choice .cq { margin-top: 13vh; font-size: 4rem; line-height: 5rem; letter-spacing: 0.1em; opacity: 0.85; text-shadow: 0 0 0.5rem rgba(57, 255, 122, 0.4); }
+.crypt-choice .pills { display: flex; justify-content: center; gap: 18rem; margin-top: 9vh; }
+.crypt-choice .pill { width: 26rem; opacity: 0.32; transform: scale(0.88); transition: opacity 250ms ease, transform 250ms ease; }
+.crypt-choice .pill i {
+  display: block; margin: 0 auto 3rem; width: 22rem; height: 9rem; border-radius: 4.5rem; position: relative; overflow: hidden; transform: rotate(-14deg);
+}
+.crypt-choice .pill i::after {   /* the shine on the capsule */
+  content: ""; position: absolute; left: 2.5rem; right: 4rem; top: 1.3rem; height: 1.8rem; border-radius: 1rem; background: rgba(255, 255, 255, 0.3); filter: blur(0.2rem);
+}
+.crypt-choice .red i { background: radial-gradient(ellipse at 35% 30%, #c95a64 0%, #a3001a 45%, #3a0006 100%); box-shadow: 0 0 2rem rgba(255, 30, 50, 0.3); }
+.crypt-choice .blue i { background: radial-gradient(ellipse at 35% 30%, #6f8fcc 0%, #0e30b8 45%, #030a3c 100%); box-shadow: 0 0 2rem rgba(40, 90, 255, 0.3); }
+.crypt-choice .pill b { display: block; font-weight: 400; font-size: 6rem; line-height: 7rem; letter-spacing: 0.3em; }
+.crypt-choice .pill span { display: block; margin-top: 1rem; font-size: 2rem; line-height: 2.75rem; letter-spacing: 0.12em; opacity: 0.8; }
+.crypt-choice .red b { color: #d9606d; text-shadow: 0 0 0.6rem rgba(255, 30, 50, 0.45); }
+.crypt-choice .blue b { color: #7590d6; text-shadow: 0 0 0.6rem rgba(40, 90, 255, 0.45); }
+.crypt-choice .pill.sel { opacity: 0.85; transform: scale(1.12); }
+.crypt-choice .red.sel i { box-shadow: 0 0 3.5rem 0.5rem rgba(255, 30, 50, 0.45); }
+.crypt-choice .blue.sel i { box-shadow: 0 0 3.5rem 0.5rem rgba(40, 90, 255, 0.45); }
+.crypt-choice .pill.sel b::before { content: "> "; }
+.crypt-choice .ch { position: absolute; left: 0; right: 0; bottom: 9vh; font-size: 2rem; letter-spacing: 0.2em; opacity: 0.6; }
+
+/* ---------- red, again: broken ---------- */
+/* a slow, uneasy tremor: movement only (colour filters on the whole home every frame overloaded the TV) */
+html.crypt-corrupt .home { animation: crypt-quake 900ms steps(3) infinite; }
+@keyframes crypt-quake {
+  0% { transform: translate(0, 0); } 33% { transform: translate(-0.3rem, 0.15rem); }
+  66% { transform: translate(0.35rem, -0.2rem); } 100% { transform: translate(0, 0); }
+}
+html.crypt-corrupt .app, html.crypt-corrupt .ncard, html.crypt-corrupt .time, html.crypt-corrupt .date, html.crypt-corrupt .crypt-frame {
+  transition: transform 90ms steps(2), opacity 90ms steps(2);
+}
+html.crypt-corrupt .crypt-edge { animation: crypt-flick 1.2s steps(2) infinite; }
+@keyframes crypt-flick { 0% { opacity: 1; } 50% { opacity: 0.2; } }
+.crypt-tear {
+  position: fixed; left: -15vw; width: 130vw; z-index: 50; pointer-events: none; overflow: hidden; white-space: nowrap;
+  font-family: var(--c-term); font-size: 2rem; line-height: 1; color: rgba(255, 220, 225, 0.9); letter-spacing: 0.3em;
+  background: repeating-linear-gradient(90deg, rgba(160, 20, 35, 0.45) 0 7rem, rgba(0, 0, 0, 0.8) 7rem 9rem, rgba(255, 255, 255, 0.12) 9rem 9.5rem);
+  opacity: 0.8;
+}
+.crypt-err {
+  position: fixed; z-index: 52; pointer-events: none; padding: 1rem 1.75rem; max-width: 60vw;
+  font-family: var(--c-term); font-size: 2.25rem; letter-spacing: 0.08em; color: #fff; background: rgba(90, 0, 8, 0.92);
+  border: 0.2rem solid #ff2a3c; box-shadow: 0 0 2rem rgba(255, 30, 50, 0.7); text-shadow: 0 0 0.6rem #ff2a3c;
+  animation: crypt-errin 300ms steps(3) 1;
+}
+@keyframes crypt-errin { 0% { transform: scale(1.6, 0.1); opacity: 0; } 100% { transform: none; opacity: 1; } }
+
+/* ---------- red: the proximity alarm ---------- */
+.crypt-alarm {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 57; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--c-term); color: #fff;
+  box-shadow: inset 0 0 0 0.6rem #b8101e, inset 0 0 18rem 4rem rgba(200, 0, 18, 0.45);   /* toned down: dramatic, not blinding */
+  background: radial-gradient(ellipse at center, rgba(70, 0, 6, 0.3), rgba(25, 0, 0, 0.8));
+  animation: crypt-beacon 760ms steps(1) infinite;
+}
+@keyframes crypt-beacon { 0% { background-color: rgba(170, 0, 18, 0.2); } 50% { background-color: rgba(0, 0, 0, 0.7); } }
+.crypt-alarm .ab {
+  font-size: 9rem; line-height: 11rem; letter-spacing: 0.1em; padding: 1.5rem 4rem; text-align: center;
+  background: #000; border: 0.3rem solid #c4141f; color: #f3b9bf; text-shadow: 0 0 0.6rem rgba(255, 26, 46, 0.6);
+  animation: crypt-abflip 0.76s steps(1) infinite;
+}
+@keyframes crypt-abflip { 0% { background: #000; color: #f3b9bf; } 50% { background: #a8101c; color: #120000; text-shadow: none; } }
+.crypt-alarm .as { margin-top: 3rem; font-size: 3rem; letter-spacing: 0.2em; color: #d99aa1; text-shadow: 0 0 0.4rem rgba(255, 26, 46, 0.5); }
+.crypt-alarm .am { margin-top: 2rem; font-size: 4rem; letter-spacing: 0.3em; color: #ecc5c9; text-shadow: 0 0 0.5rem rgba(255, 120, 130, 0.5); min-height: 5rem; }
+.crypt-alarm.emp { animation: none; background: #d8dde2; box-shadow: none; }
+.crypt-alarm.emp > * { visibility: hidden; }
+.crypt-alarm.dark { background: #000; transition: background 120ms; }
+html.crypt-alarming .home { animation: crypt-quake 380ms steps(2) infinite; }
+
+/* ---------- red: STDERR on the left, things glitching by themselves ---------- */
+.crypt-stderr {
+  position: fixed; left: 4rem; top: 13rem; width: 30rem; height: 23rem; overflow: hidden; z-index: 6; pointer-events: none;
+  font-family: var(--c-term); font-size: 1.25rem; line-height: 1.5rem; color: rgba(255, 120, 135, 0.8); white-space: nowrap;
+  border-left: 0.15rem solid rgba(255, 40, 60, 0.5); padding-left: 1rem; text-shadow: 0 0 0.4rem rgba(255, 40, 60, 0.6);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 25%, #000 100%); mask-image: linear-gradient(180deg, transparent 0, #000 25%, #000 100%);
+}
+.crypt-stderr b { display: block; font-weight: 400; color: #ff5566; letter-spacing: 0.15em; margin-bottom: 0.5rem; }
+.crypt-stderr .new { color: #ffd0d5; }
+html.crypt-idle .crypt-stderr { opacity: 0.5; }
+.crypt-bug { animation: crypt-bugged 380ms steps(3) 1 !important; }
+@keyframes crypt-bugged {
+  0% { transform: translate(0.8rem, -0.3rem) skewX(8deg); filter: invert(1) hue-rotate(180deg); }
+  50% { transform: translate(-1rem, 0.2rem); filter: saturate(4) hue-rotate(-40deg); opacity: 0.4; }
+  100% { transform: none; filter: none; }
+}
+
+/* ---------- the screensaver, now (quick button) ---------- */
+.crypt-saverframe { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: 0; z-index: 90; background: #000; }
+
+/* ---------- an old tube: on (a line opening into the picture), off (down to a line, then a dot) ---------- */
+html.crypt-crton body { animation: crypt-crt-on 900ms cubic-bezier(0.2, 0.7, 0.2, 1) 1; transform-origin: 50% 50%; }
+@keyframes crypt-crt-on {
+  0% { transform: scale(0.05, 0.003); filter: brightness(12); }
+  30% { transform: scale(1, 0.006); filter: brightness(8); }
+  65% { transform: scale(1, 1.02); filter: brightness(1.8); }
+  100% { transform: none; filter: none; }
+}
+.crypt-saverframe.off { animation: crypt-crt-off 420ms ease-in 1 forwards; transform-origin: 50% 50%; }
+@keyframes crypt-crt-off {
+  0% { transform: none; filter: none; }
+  55% { transform: scale(1, 0.006); filter: brightness(6); }
+  100% { transform: scale(0, 0.003); filter: brightness(10); opacity: 0.4; }
+}
+
+/* ---------- the deja vu cat, the spoon ---------- */
+.crypt-cat {
+  position: fixed; z-index: 20; margin: 0; pointer-events: none; font-family: var(--c-term); font-size: 1.75rem; line-height: 1.9rem;
+  color: var(--c-green); text-shadow: 0 0 0.5rem rgba(57, 255, 122, 0.8); white-space: pre;
+}
+.crypt-cat { left: 36rem; top: 5rem; opacity: 0; }
+.crypt-cat.go { animation: crypt-catwalk 9s linear 1 forwards; }
+@keyframes crypt-catwalk {
+  0% { opacity: 0; transform: translateX(0); } 8% { opacity: 1; } 92% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(var(--walk, 48rem)); }
+}
+html.crypt-spoon .time, html.crypt-spoon.crypt-slick .time.crypt-type { animation: crypt-bend 3.2s ease-in-out 1; transform-origin: 50% 100%; }   /* wins over the minute's typing */
+@keyframes crypt-bend {
+  0% { transform: none; }
+  35% { transform: perspective(40rem) rotateX(18deg) skewX(-14deg) scaleY(0.92); filter: blur(0.04rem); }
+  60% { transform: perspective(40rem) rotateX(26deg) skewX(-24deg) scaleY(0.86); }
+  85% { transform: perspective(40rem) rotateX(10deg) skewX(-8deg); }
+  100% { transform: none; }
+}
+
+/* ---------- the home's edge: a faint still line round the screen (the moving streaks are drawn with the rain) ---------- */
+.crypt-trace { position: fixed; top: 0.375rem; left: 0.375rem; right: 0.375rem; bottom: 0.375rem; z-index: 7; pointer-events: none;
+  border: 1px solid var(--c-tint, rgba(57, 255, 122, 0.85)); border-radius: 0.5rem; opacity: 0.22; }
+html.crypt-idle .crypt-trace { opacity: 0.12; }
+html.saver .crypt-trace { display: none; }
+.crypt-alarm .ao {
+  margin: 2.5rem 0 0; min-width: 52rem; min-height: 13rem; padding: 1.25rem 2rem; text-align: left; white-space: pre;
+  font-family: var(--c-term); font-size: 2.5rem; line-height: 3.1rem; letter-spacing: 0.12em; color: #e8bcc1;
+  background: rgba(0, 0, 0, 0.85); border: 0.15rem solid rgba(200, 30, 45, 0.7); text-shadow: 0 0 0.35rem rgba(255, 26, 46, 0.5);
+}
+.crypt-down {
+  position: fixed; left: 14rem; top: 46vh; z-index: 59; pointer-events: none; font-family: var(--c-term); font-size: 2.75rem;
+  letter-spacing: 0.14em; color: #d9505f; text-shadow: 0 0 0.35rem rgba(255, 30, 50, 0.4); opacity: 1; transition: opacity 1.2s ease;
+}
+.crypt-down.off { opacity: 0; }
+
+/* ---------- the hardline run ---------- */
+.crypt-panel .prun { text-align: left; }
+.crypt-panel .prun .pcall {
+  margin: 1.25rem 0 1.5rem; font-size: 6.5rem; line-height: 7.5rem; letter-spacing: 0.12em; color: #eafff0;
+  text-shadow: 0 0 0.75rem rgba(57, 255, 122, 0.9), 0 0 2.5rem rgba(57, 255, 122, 0.5);
+}
+.crypt-panel .prun .pcall.phone { color: #fff; animation: crypt-blink 0.7s steps(1) infinite; }
+.crypt-panel .prun .pcall.ok { animation: crypt-callok 300ms ease-out 1; }
+.crypt-panel .prun .pcall.bad { animation: crypt-callbad 300ms steps(3) 1; color: #ff5566; }
+@keyframes crypt-callok { 0% { transform: scale(1.15); filter: brightness(2); } 100% { transform: none; filter: none; } }
+@keyframes crypt-callbad { 0% { transform: translateX(-1rem); } 50% { transform: translateX(1rem); } 100% { transform: none; } }
+.crypt-panel .prun .pbar { height: 1.25rem; border: 0.125rem solid rgba(57, 255, 122, 0.7); margin-bottom: 1rem; }
+.crypt-panel .prun .pbar i { display: block; height: 100%; width: 100%; background: var(--c-green); box-shadow: 0 0 1rem rgba(57, 255, 122, 0.8); transition: width 100ms linear; }
+.crypt-panel .prun .pinfo { font-size: 1.75rem; letter-spacing: 0.12em; opacity: 0.85; }
+html.crypt-running .crypt-cmd { color: #eafff0; }
+
+/* ---------- the operator ---------- */
+/* the station: the tiles pulled back, the rain to the fore */
+html.crypt-op .dock, html.crypt-op .shelf, html.crypt-op .shelves { opacity: 0.55; transform: scale(0.9); transform-origin: 50% 100%; transition: opacity 900ms ease, transform 900ms ease; }
+html.crypt-op .crypt-frame { box-shadow: 0 0 0 0.15rem rgba(57, 255, 122, 0.35); }
+.crypt-panel .pfeed { font-size: 1.75rem; line-height: 2.4rem; letter-spacing: 0.3em; opacity: 0.8; }
+.crypt-console {
+  position: fixed; left: 50%; top: 50%; width: 64rem; max-height: 62rem; transform: translate(-50%, -50%) scale(0.96); z-index: 58;
+  display: flex; flex-direction: column; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 300ms ease, transform 300ms ease, visibility 0s 300ms;
+  background: rgba(0, 8, 3, 0.94); border: 0.15rem solid rgba(57, 255, 122, 0.75); box-shadow: 0 0 3rem rgba(57, 255, 122, 0.25);
+  font-family: var(--c-term); color: var(--c-green); font-size: 1.75rem; line-height: 2.35rem; letter-spacing: 0.06em;
+}
+.crypt-console.on { opacity: 1; visibility: visible; transform: translate(-50%, -50%); transition: opacity 300ms ease, transform 300ms ease; }
+.crypt-console .cbar { padding: 0.75rem 1.5rem; background: rgba(57, 255, 122, 0.85); color: #001a08; letter-spacing: 0.15em; }
+.crypt-console .cbody { padding: 1rem 2.6rem 1rem 1.5rem; overflow-y: auto; overflow-x: hidden; flex: 1 1 auto; min-height: 0; scrollbar-width: none; }
+.crypt-console .cbody::-webkit-scrollbar { display: none; }
+/* the scroll bar on the right, drawn by hand so it shows on the TV too: a dim track and a green thumb */
+.crypt-console .cwrap { position: relative; display: flex; flex: 1 1 auto; min-height: 0; }
+.crypt-console .ctrack { position: absolute; right: 0.7rem; top: 1rem; bottom: 1rem; width: 0.7rem; background: rgba(57, 255, 122, 0.1); border: 0.1rem solid rgba(57, 255, 122, 0.3); }
+.crypt-console .cthumb { position: absolute; left: -0.1rem; right: -0.1rem; background: rgba(57, 255, 122, 0.8); box-shadow: 0 0 0.6rem rgba(57, 255, 122, 0.6); transition: top 150ms ease; }
+.crypt-console .ch { margin-top: 0.4rem; opacity: 0.55; letter-spacing: 0.18em; font-size: 1.625rem; }
+.crypt-console .cn { font-size: 1.375rem; opacity: 0.8; line-height: 1.35; white-space: nowrap; }
+.crypt-console .cs { color: #eafff0; background: rgba(57, 255, 122, 0.16); text-shadow: 0 0 0.5rem rgba(57, 255, 122, 0.8); }
+.crypt-console .cfoot { padding: 0.75rem 1.5rem; border-top: 0.1rem solid rgba(57, 255, 122, 0.35); font-size: 1.5rem; opacity: 0.65; letter-spacing: 0.15em; }
+.crypt-program { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 56; background: rgba(0, 0, 0, 0.9); pointer-events: none; }
+.crypt-program .pl { position: absolute; left: 14rem; top: 44vh; font-family: var(--c-term); font-size: 3.5rem; letter-spacing: 0.1em; color: #4fd982;
+  text-shadow: 0 0 0.35rem rgba(57, 255, 122, 0.35); transition: opacity 600ms ease; }
+.crypt-program.go .pl { opacity: 0; }
+.crypt-program canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.crypt-finale { background: #000; }
+.crypt-finale canvas { opacity: 0.9; }
+.crypt-panel .pmsg { white-space: normal; font-size: 2.25rem; line-height: 3rem; letter-spacing: 0.06em; color: #eafff0; margin-top: 1rem; }
+
+/* ---------- moments ---------- */
+.crypt-vase, .crypt-sentinel, .crypt-face { position: fixed; z-index: 20; margin: 0; pointer-events: none; font-family: var(--c-term); white-space: pre; }
+.crypt-vase { font-size: 2.1rem; line-height: 2.2rem; color: #c8ffd8; text-shadow: 0 0 0.4rem rgba(57, 255, 122, 0.7); transform-origin: 30% 100%; transition: opacity 1s ease; }
+.crypt-vase.fall { animation: crypt-vasefall 650ms ease-in 1 forwards; }
+.crypt-vase.gone { opacity: 0; }
+@keyframes crypt-vasefall { 0% { transform: none; } 35% { transform: rotate(-25deg) translateX(-1rem); } 100% { transform: rotate(-95deg) translate(-6rem, 14rem); opacity: 0.6; } }
+.crypt-chip { position: fixed; z-index: 21; pointer-events: none; font-family: var(--c-term); font-size: 1.5rem; color: #c8ffd8; animation: crypt-chip 1.4s ease-out 1 forwards; }
+@keyframes crypt-chip { to { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
+.app.crypt-brick .face { background: repeating-linear-gradient(0deg, transparent 0 1.1rem, rgba(57, 255, 122, 0.55) 1.1rem 1.25rem),
+  repeating-linear-gradient(90deg, rgba(57, 255, 122, 0.08) 0 2.6rem, rgba(57, 255, 122, 0.55) 2.6rem 2.75rem) !important; }
+.app.crypt-brick .face img, .app.crypt-brick .face svg, .app.crypt-brick .face span { opacity: 0 !important; }
+.app.crypt-brick { opacity: 1 !important; transform: scale(1.5) translateY(-2.25rem) !important; z-index: 4;
+  filter: drop-shadow(0 0 0.375rem #fff) drop-shadow(0 0 1.25rem rgba(57, 255, 122, 0.9)) !important; transition: transform 350ms ease, filter 350ms ease; }
+.app.crypt-brick .face { box-shadow: 0 0 1.5rem rgba(57, 255, 122, 0.7) !important; filter: none !important; opacity: 1 !important; }
+.crypt-ring { position: fixed; left: 50%; transform: translateX(-50%); top: 4.5rem; padding: 0.6rem 1.5rem; border: 0.15rem solid rgba(57, 255, 122, 0.7); background: rgba(0, 10, 4, 0.85); z-index: 22; pointer-events: none; font-family: var(--c-term); font-size: 2rem; letter-spacing: 0.12em;
+  color: #eafff0; text-shadow: 0 0 0.5rem rgba(57, 255, 122, 0.8); animation: crypt-blink 0.8s steps(1) infinite; }
+.crypt-sentinel { left: 100vw; z-index: 31; color: #ff6a7d; line-height: 1.05; text-shadow: 0 0 0.5rem #ff2840, 0 0 1.6rem rgba(255, 40, 60, 0.9); animation: crypt-drift 7s linear 1 both; }
+@keyframes crypt-drift { from { transform: translateX(0) translateY(0); } 50% { transform: translateX(-70vw) translateY(1.5rem); } to { transform: translateX(-165vw) translateY(0); } }
+.crypt-face { top: 8vh; font-size: 2.6rem; line-height: 2.7rem; color: rgba(200, 255, 216, 0.85); text-shadow: 0 0 0.6rem rgba(57, 255, 122, 0.8);
+  animation: crypt-faceflick 1.5s steps(1) 1 forwards; }
+@keyframes crypt-faceflick { 0% { opacity: 0; } 10% { opacity: 1; } 25% { opacity: 0.2; } 35% { opacity: 1; } 80% { opacity: 0.6; } 100% { opacity: 0; } }
+html.crypt-grey .home, html.crypt-grey .crypt-rain, html.crypt-grey .crypt-frame, html.crypt-grey .crypt-edge, html.crypt-grey .crypt-log, html.crypt-grey .crypt-trace {
+  filter: grayscale(1) brightness(0.65); transition: filter 600ms ease; }
+.crypt-dress { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 23; pointer-events: none; }
+.crypt-rabbit { position: fixed; z-index: 20; left: 0; top: 0; margin: 0; pointer-events: none; font-family: var(--c-term); font-size: 1.6rem;
+  line-height: 1.7rem; color: #fff; white-space: pre; text-shadow: 0 0 0.6rem rgba(255, 255, 255, 0.8); opacity: 0; }
+html.crypt-godark .home, html.crypt-godark .crypt-frame, html.crypt-godark .crypt-log, html.crypt-godark .crypt-rain, html.crypt-godark .crypt-trace,
+html.crypt-godark .crypt-edge { filter: brightness(0.18); transition: filter 1.2s ease; }
+.crypt-search { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 30; pointer-events: none; overflow: hidden; }
+.crypt-search i { position: absolute; top: -20vh; width: 30vw; height: 140vh; left: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 40, 60, 0.22), rgba(255, 120, 130, 0.35), rgba(255, 40, 60, 0.22), transparent);
+  transform-origin: 50% 0; animation: crypt-scan 5s ease-in-out infinite alternate; filter: blur(0.5rem); }
+.crypt-search i + i { animation-duration: 6.5s; animation-delay: -2s; opacity: 0.7; }
+@keyframes crypt-scan { from { transform: translateX(-30vw) rotate(-12deg); } to { transform: translateX(100vw) rotate(12deg); } }
+html.crypt-codeview .home, html.crypt-codeview .crypt-frame, html.crypt-codeview .crypt-log { filter: sepia(1) hue-rotate(70deg) saturate(4) brightness(1.1); }
+.crypt-flood { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 24; pointer-events: none; opacity: 0.8; transition: opacity 0.7s ease; mix-blend-mode: screen; }
+.crypt-flood.off { opacity: 0; }
+
+/* the mirror: the clock window goes soft like liquid glass, then chrome takes the screen */
+html.crypt-mirror .crypt-frame, html.crypt-mirror .time, html.crypt-mirror .date, html.crypt-mirror .crypt-panel { animation: crypt-ripple 1.6s ease-in-out infinite; }
+html.crypt-mirror .time { color: #e6eef6; text-shadow: 0 0 0.6rem rgba(220, 235, 250, 0.9); transition: color 1.5s ease; }
+@keyframes crypt-ripple { 0%, 100% { transform: none; filter: none; } 25% { transform: skewX(4deg) scaleY(1.03); filter: blur(1px); }
+  50% { transform: skewX(-3deg) scaleX(1.04); filter: blur(0.5px) contrast(1.3); } 75% { transform: skewY(2deg) scaleY(0.97); filter: blur(1.5px); } }
+.crypt-chrome { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 40; pointer-events: none; }
+/* with "reduce motion" on, the glass still ripples (it is the moment), just slower and gentler */
+@media (prefers-reduced-motion: reduce) { html.crypt-mirror .crypt-frame, html.crypt-mirror .time, html.crypt-mirror .date, html.crypt-mirror .crypt-panel { animation-duration: 3.2s; } }
+/* the EMP is armed and waiting for OK: the last line blinks */
+.crypt-alarm .ao.ask { border-color: rgba(255, 120, 130, 0.9); }
+.crypt-alarm .ao.ask::after { content: "_"; animation: crypt-askblink 0.8s steps(2) infinite; }
+@keyframes crypt-askblink { 50% { opacity: 0; } }

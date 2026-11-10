@@ -1201,7 +1201,7 @@ def clean_settings(s):
         out["wx_unit"] = s["wx_unit"]
     if s.get("wx_every") in (15, 30, 60):
         out["wx_every"] = s["wx_every"]
-    if s.get("look") in ("night", "classic"):
+    if s.get("look") in ("night", "classic", "crypt"):
         out["look"] = s["look"]
     if s.get("glass") in ("off", "on", "lite"):
         out["glass"] = s["glass"]

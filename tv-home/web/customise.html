@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customise couch-tv</title>
+<!-- Design the TV home before it goes on the TV. Run scripts/customise.py and open the address it
+     prints: the left side is every look setting, the right side is the real home (index.html?mock=1)
+     with those settings. "Save" writes them into config.json, which setup hands to the TV.
+     Opened from any other static server it still previews; Save then downloads config.json. -->
+<style>
+  @font-face { font-family: Inter; src: url(fonts/inter-latin-wght-normal.woff2) format("woff2"); font-weight: 100 900; }
+  :root {
+    --bg: #0d0f14; --panel: #151821; --line: #262b38; --text: #e9ecf2; --dim: #8b93a7;
+    --accent: #6aa8ff; --accent-ink: #08111f; --ok: #5fd39a; --warn: #ffb35c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.45 Inter, system-ui, sans-serif; }
+  .wrap { display: grid; grid-template-columns: 360px 1fr; height: 100vh; }
+  aside { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding: 20px 20px 96px; }
+  h1 { font-size: 18px; margin: 0 0 2px; letter-spacing: .01em; }
+  .sub { color: var(--dim); margin: 0 0 18px; font-size: 13px; }
+  section { border-top: 1px solid var(--line); padding: 14px 0 10px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 0 0 10px; font-weight: 600; }
+  label.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; }
+  .hint { color: var(--dim); font-size: 12px; margin: 4px 0 8px; }
+  select, input[type=text], input[type=number], input[type=url] {
+    background: #0f121a; color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 9px; font: inherit; min-width: 0; }
+  input[type=text], input[type=url] { width: 100%; }
+  select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .seg { display: inline-flex; background: #0f121a; border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
+  .seg button { background: none; border: 0; color: var(--dim); padding: 6px 11px; border-radius: 7px; font: inherit; cursor: pointer; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .list { display: flex; flex-direction: column; gap: 6px; }
+  .item { display: flex; align-items: center; gap: 8px; background: #0f121a; border: 1px solid var(--line);
+    border-radius: 9px; padding: 6px 8px; }
+  .item.off { opacity: .5; }
+  .item .name { flex: 1; }
+  .item input[type=text] { border: 0; background: transparent; padding: 3px 2px; }
+  .ib { background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 6px; width: 26px; height: 26px;
+    cursor: pointer; font: 13px/1 Inter, sans-serif; }
+  .ib:hover { color: var(--text); border-color: var(--dim); }
+  .add { margin-top: 6px; background: none; border: 1px dashed var(--line); color: var(--dim); border-radius: 9px;
+    padding: 7px; width: 100%; cursor: pointer; font: inherit; }
+  .places { margin-top: 6px; }
+  .places button { display: block; width: 100%; text-align: left; background: #0f121a; border: 1px solid var(--line);
+    color: var(--text); border-radius: 8px; padding: 6px 9px; margin-top: 4px; cursor: pointer; font: inherit; }
+  .places small { color: var(--dim); }
+  .chip { display: inline-block; font-size: 11px; color: var(--dim); border: 1px solid var(--line); border-radius: 99px; padding: 1px 7px; }
+  .bar { position: fixed; left: 0; bottom: 0; width: 360px; padding: 14px 20px; background: linear-gradient(transparent, var(--panel) 30%);
+    display: flex; gap: 8px; align-items: center; }
+  .save { flex: 1; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px; padding: 11px; font: 600 14px Inter, sans-serif; cursor: pointer; }
+  .ghost { background: none; border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 10px 12px; cursor: pointer; font: inherit; }
+  #status { position: fixed; left: 20px; bottom: 64px; width: 320px; font-size: 12px; color: var(--ok); min-height: 16px; }
+  #status.bad { color: var(--warn); }
+  main { display: flex; flex-direction: column; min-width: 0; }
+  .stagebar { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--line); color: var(--dim); font-size: 13px; }
+  .stage { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; min-height: 0; }
+  .tv { position: relative; width: 100%; max-width: calc((100vh - 140px) * 16 / 9); aspect-ratio: 16 / 9;
+    background: #000; border-radius: 14px; box-shadow: 0 0 0 10px #1b1e26, 0 30px 80px rgba(0,0,0,.6); overflow: hidden; }
+  .tv iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
+  @media (max-width: 900px) {
+    .wrap { grid-template-columns: 1fr; height: auto; }
+    aside { order: 2; padding-bottom: 110px; }
+    .bar { width: 100%; }
+    #status { width: auto; right: 20px; }
+    .stage { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside>
+    <h1>Customise your TV home</h1>
+    <p class="sub">Change anything on the left. The TV on the right is the real couch-tv home with your settings. Press Save when it looks right.</p>
+
+    <section>
+      <h2>Who watches</h2>
+      <div class="list" id="people"></div>
+      <button class="add" id="add-person">+ Add a person</button>
+      <p class="hint">One person: no switcher. Two: a switch at the top left. Three or more: a round icon that opens a list.</p>
+    </section>
+
+    <section>
+      <h2>Look</h2>
+      <label class="row">Style <span class="seg" data-key="look"><button data-v="night">Scenes</button><button data-v="crypt">Crypt</button><button data-v="classic">Classic</button></span></label>
+      <p class="hint" id="crypt-note">Crypt: green code rain, the clock and date in a 90s terminal window. The code over the app you are on turns its colour, and the screen's edges glow in that colour too, so TV backlights that follow the picture follow along. Glass settings do not apply.</p>
+      <div id="scene-box">
+        <p class="hint">Scenes that take turns, in order. Tick to use, arrows to reorder, click a name to see it now.</p>
+        <div class="list" id="scenes"></div>
+        <label class="row">Seconds per scene <input type="number" id="secs" min="5" max="600" step="5" style="width:80px"></label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Clock</h2>
+      <label class="row">Clock <span class="seg" data-key="clock"><button data-v="12h">12 hour</button><button data-v="24h">24 hour</button></span></label>
+      <label class="row" id="clockstyle-row">Clock style <span class="seg" data-key="clock_style"><button data-v="frosted">Frosted</button><button data-v="liquid">Liquid glass</button></span></label>
+    </section>
+
+    <section>
+      <h2>Glass</h2>
+      <label class="row">Glass panels <span class="seg" data-key="glass"><button data-v="off">Off</button><button data-v="lite">No blur</button><button data-v="on">On</button></span></label>
+      <label class="row">Glass app icons <span class="seg" data-key="glass_icons"><button data-v="false">Off</button><button data-v="true">On</button></span></label>
+      <label class="row">How clear <span><input type="range" id="amount" min="1" max="5" step="1" style="width:130px; vertical-align:middle"> <span class="chip" id="amount-v"></span></span></label>
+      <p class="hint">"No blur" keeps the panels but is lighter work for an older TV.</p>
+    </section>
+
+    <section>
+      <h2>Apps row</h2>
+      <label class="row">Apps before More apps <span><input type="range" id="dock" min="1" max="10" step="1" style="width:130px; vertical-align:middle"> <span class="chip" id="dock-v"></span></span></label>
+      <p class="hint">Which apps go first is set on the TV itself: hold OK on an app to move it.</p>
+    </section>
+
+    <section>
+      <h2>Quick buttons</h2>
+      <div class="list" id="quick"></div>
+      <p class="hint">Without a computer left on, the sleep timer does not show. The look and input buttons always work.</p>
+    </section>
+
+    <section>
+      <h2>Weather and language</h2>
+      <label class="row" style="display:block">Town or city
+        <input type="text" id="place" placeholder="e.g. London" autocomplete="off" style="margin-top:6px">
+      </label>
+      <div class="places" id="places"></div>
+      <label class="row">Language
+        <select id="lang">
+          <option value="">Same as the TV</option><option value="en">English</option><option value="es">Español</option>
+          <option value="es-MX">Español (México)</option><option value="it">Italiano</option><option value="de">Deutsch</option><option value="tr">Türkçe</option>
+        </select>
+      </label>
+      <label class="row">Country for streaming
+        <input type="text" id="country" maxlength="2" style="width:60px; text-transform:uppercase">
+      </label>
+    </section>
+
+    <section>
+      <h2>Video background <span class="chip">optional</span></h2>
+      <input type="url" id="video" placeholder="https://…/clip.mp4">
+      <p class="hint">A short looping MP4 or MOV instead of the photo. Heavier on small TV sticks.</p>
+    </section>
+
+    <div id="status"></div>
+    <div class="bar">
+      <button class="ghost" id="reset" title="Back to couch-tv's own defaults">Defaults</button>
+      <button class="save" id="save">Save</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="stagebar"><span>Preview: the real home with sample shows and apps</span><span id="hintkeys">Click the TV, then use the arrow keys, Enter and Esc like a remote</span></div>
+    <div class="stage"><div class="tv" id="tv"><iframe id="frame" title="TV home preview"></iframe></div></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var SCENES = [["night", "Night"], ["golden", "Golden hour"], ["water", "Waterline"], ["fog", "Fog"], ["dawn", "Dawn"]];
+  var QUICK = [["sleep", "Sleep timer"], ["look", "Look switch (Scenes / Classic)"], ["input", "Input (HDMI) menu"], ["settings", "TV settings"], ["saver", "Screensaver (Crypt look)"]];
+  var DEFAULTS = {
+    people: ["Person 1", "Person 2"],
+    home: { look: "night", scenes: ["night", "golden", "water", "fog", "dawn"], scene_seconds: 20, clock: "12h",
+      clock_style: "frosted", glass: "off", glass_icons: false, glass_amount: 3, dock_size: 10, language: "", video_url: "" },
+    quick: ["sleep"],
+    weather: { place: "Sydney", lat: -33.8688, lon: 151.2093, timezone: "Australia/Sydney" },
+    country: "AU"
+  };
+  var S = JSON.parse(JSON.stringify(DEFAULTS));
+  var startScene = "";
+  var HAS_SERVER = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) { if (k === "text") n.textContent = attrs[k]; else if (k.indexOf("on") === 0) n.addEventListener(k.slice(2), attrs[k]); else n.setAttribute(k, attrs[k]); });
+    (kids || []).forEach(function (c) { n.appendChild(c); });
+    return n;
+  }
+  function status(msg, bad) { var s = $("status"); s.textContent = msg || ""; s.className = bad ? "bad" : ""; }
+
+  // ---------- the preview ----------
+  function previewUrl() {
+    var h = S.home, p = ["mock=1", "reset=1"];
+    p.push("names=" + encodeURIComponent(S.people.filter(Boolean).join(",") || ""));
+    if (!S.people.filter(Boolean).length) p.push("people=0");
+    p.push("look=" + h.look, "clock=" + h.clock, "dock=" + h.dock_size, "secs=" + Math.max(5, h.scene_seconds | 0));
+    if (h.scenes.length) p.push("scenes=" + h.scenes.join(","));
+    if (h.clock_style !== "frosted") p.push("clockstyle=" + h.clock_style);
+    if (h.glass !== "off") p.push("glass=" + h.glass);
+    if (h.glass_icons) p.push("icons=glass");
+    p.push("amount=" + h.glass_amount);
+    if (h.language) p.push("lang=" + h.language);
+    if (h.video_url) p.push("video=" + encodeURIComponent(h.video_url));
+    p.push("quick=" + S.quick.join(","));
+    if (S.quick.indexOf("input") >= 0) p.push("inputs=4");
+    var w = S.weather;
+    p.push("place=" + encodeURIComponent(w.place), "lat=" + w.lat, "lon=" + w.lon, "tz=" + encodeURIComponent(w.timezone));
+    if (startScene) p.push("scene=" + startScene);
+    return "index.html?" + p.join("&");
+  }
+  var timer = null;
+  function refresh() {
+    clearTimeout(timer);
+    timer = setTimeout(function () { $("frame").src = previewUrl(); }, 250);
+    try { localStorage.setItem("couchtv:customise", JSON.stringify(S)); } catch (e) {}
+  }
+  function fit() {
+    var tv = $("tv"), f = $("frame");
+    f.style.transform = "scale(" + (tv.clientWidth / 1920) + ")";
+  }
+  window.addEventListener("resize", fit);
+
+  // ---------- controls ----------
+  function drawPeople() {
+    var box = $("people"); box.innerHTML = "";
+    S.people.forEach(function (name, i) {
+      var inp = el("input", { type: "text", value: name, "aria-label": "Name " + (i + 1), maxlength: "20" });
+      inp.addEventListener("input", function () { S.people[i] = inp.value; refresh(); });
+      box.appendChild(el("div", { class: "item" }, [
+        inp,
+        el("button", { class: "ib", title: "Move up", text: "↑", onclick: function () { if (i) { S.people.splice(i - 1, 0, S.people.splice(i, 1)[0]); drawPeople(); refresh(); } } }),
+        el("button", { class: "ib", title: "Remove", text: "✕", onclick: function () { S.people.splice(i, 1); drawPeople(); refresh(); } })
+      ]));
+    });
+    $("add-person").style.display = S.people.length >= 12 ? "none" : "";
+  }
+  $("add-person").addEventListener("click", function () { S.people.push(""); drawPeople(); var ins = $("people").querySelectorAll("input"); ins[ins.length - 1].focus(); });
+
+  function drawToggleList(boxId, all, chosen, onChange, onName) {
+    var box = $(boxId); box.innerHTML = "";
+    var order = chosen.concat(all.map(function (a) { return a[0]; }).filter(function (id) { return chosen.indexOf(id) < 0; }));
+    order.forEach(function (id) {
+      var label = all.filter(function (a) { return a[0] === id; })[0][1];
+      var on = chosen.indexOf(id) >= 0, idx = chosen.indexOf(id);
+      var cb = el("input", { type: "checkbox", "aria-label": label });
+      cb.checked = on;
+      cb.addEventListener("change", function () {
+        if (cb.checked) chosen.push(id); else chosen.splice(chosen.indexOf(id), 1);
+        onChange(); drawToggleList(boxId, all, chosen, onChange, onName);
+      });
+      var name = el("span", { class: "name", text: label });
+      if (onName) { name.style.cursor = "pointer"; name.addEventListener("click", function () { onName(id); }); }
+      var kids = [cb, name];
+      if (on) kids.push(el("button", { class: "ib", title: "Move up", text: "↑", onclick: function () {
+        if (idx > 0) { chosen.splice(idx - 1, 0, chosen.splice(idx, 1)[0]); onChange(); drawToggleList(boxId, all, chosen, onChange, onName); } } }));
+      box.appendChild(el("div", { class: "item" + (on ? "" : " off") }, kids));
+    });
+  }
+
+  function bindSeg() {
+    document.querySelectorAll(".seg").forEach(function (seg) {
+      var key = seg.getAttribute("data-key");
+      seg.querySelectorAll("button").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var v = b.getAttribute("data-v");
+          S.home[key] = key === "glass_icons" ? v === "true" : v;
+          syncSeg(); refresh();
+        });
+      });
+    });
+  }
+  function syncSeg() {
+    document.querySelectorAll(".seg").forEach(function (seg) {
+      var key = seg.getAttribute("data-key");
+      seg.querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", String(S.home[key]) === b.getAttribute("data-v")); });
+    });
+    var night = S.home.look === "night";
+    $("scene-box").style.display = night ? "" : "none";
+    $("clockstyle-row").style.display = night ? "" : "none";
+    $("crypt-note").style.display = S.home.look === "crypt" ? "" : "none";
+  }
+
+  function drawAll() {
+    drawPeople();
+    drawToggleList("scenes", SCENES, S.home.scenes, refresh, function (id) { startScene = id; refresh(); });
+    drawToggleList("quick", QUICK, S.quick, refresh);
+    syncSeg();
+    $("secs").value = S.home.scene_seconds;
+    $("amount").value = S.home.glass_amount; $("amount-v").textContent = S.home.glass_amount;
+    $("dock").value = S.home.dock_size; $("dock-v").textContent = S.home.dock_size;
+    $("lang").value = S.home.language || "";
+    $("country").value = S.country;
+    $("video").value = S.home.video_url || "";
+    $("place").value = S.weather.place;
+  }
+
+  $("secs").addEventListener("change", function () { S.home.scene_seconds = Math.max(5, parseInt($("secs").value, 10) || 20); $("secs").value = S.home.scene_seconds; refresh(); });
+  $("amount").addEventListener("input", function () { S.home.glass_amount = +$("amount").value; $("amount-v").textContent = S.home.glass_amount; refresh(); });
+  $("dock").addEventListener("input", function () { S.home.dock_size = +$("dock").value; $("dock-v").textContent = S.home.dock_size; refresh(); });
+  $("lang").addEventListener("change", function () { S.home.language = $("lang").value; refresh(); });
+  $("country").addEventListener("change", function () { S.country = ($("country").value || "AU").toUpperCase(); refresh(); });
+  $("video").addEventListener("change", function () { S.home.video_url = $("video").value.trim(); refresh(); });
+
+  // weather place search: Open-Meteo's geocoding, free and with no key (the same search the TV uses)
+  var placeTimer = null;
+  $("place").addEventListener("input", function () {
+    clearTimeout(placeTimer);
+    var q = $("place").value.trim();
+    if (q.length < 2) { $("places").innerHTML = ""; return; }
+    placeTimer = setTimeout(function () {
+      fetch("https://geocoding-api.open-meteo.com/v1/search?count=5&name=" + encodeURIComponent(q))
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          var box = $("places"); box.innerHTML = "";
+          (j.results || []).forEach(function (r) {
+            var where = [r.admin2, r.admin1, r.country].filter(Boolean).join(", ");
+            var b = el("button", { onclick: function () {
+              S.weather = { place: r.name, lat: +r.latitude.toFixed(4), lon: +r.longitude.toFixed(4), timezone: r.timezone };
+              if (r.country_code) S.country = r.country_code.toUpperCase();
+              $("place").value = r.name; $("country").value = S.country; box.innerHTML = ""; refresh();
+            } }, [document.createTextNode(r.name + " "), el("small", { text: where })]);
+            box.appendChild(b);
+          });
+          if (!box.children.length) box.appendChild(el("p", { class: "hint", text: "No places found." }));
+        })
+        .catch(function () { $("places").innerHTML = '<p class="hint">Could not search for places (no internet?).</p>'; });
+    }, 350);
+  });
+
+  $("reset").addEventListener("click", function () { S = JSON.parse(JSON.stringify(DEFAULTS)); startScene = ""; drawAll(); refresh(); status("Back to the defaults. Not saved yet."); });
+
+  // ---------- save ----------
+  function payload() {
+    var h = JSON.parse(JSON.stringify(S.home));
+    if (!h.language) delete h.language;
+    if (!h.video_url) delete h.video_url;
+    return { people: S.people.map(function (s) { return s.trim(); }).filter(Boolean), home: h, quick: S.quick.slice(),
+      weather: S.weather, country: S.country };
+  }
+  $("save").addEventListener("click", function () {
+    var body = payload();
+    if (!HAS_SERVER) {
+      var a = el("a", { href: URL.createObjectURL(new Blob([JSON.stringify(body, null, 2)], { type: "application/json" })), download: "couch-tv-look.json" });
+      document.body.appendChild(a); a.click(); a.remove();
+      status("Downloaded couch-tv-look.json. Give it to whoever sets up the TV.");
+      return;
+    }
+    fetch("/api/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; }); })
+      .then(function (j) { status("Saved to " + j.file + ". It goes on the TV at setup."); })
+      .catch(function (e) { status("Could not save: " + e.message, true); });
+  });
+
+  // ---------- start: what was saved before, else this browser's draft, else the defaults ----------
+  function merge(saved) {
+    if (!saved) return;
+    if (Array.isArray(saved.people)) S.people = saved.people.map(function (p) { return typeof p === "string" ? p : p.name; }).filter(Boolean);
+    if (saved.home) Object.keys(DEFAULTS.home).forEach(function (k) { if (saved.home[k] !== undefined) S.home[k] = saved.home[k]; });
+    if (Array.isArray(saved.quick)) S.quick = saved.quick.filter(function (q) { return QUICK.some(function (x) { return x[0] === q; }); });
+    if (saved.weather && saved.weather.lat !== undefined) S.weather = saved.weather;
+    if (saved.country) S.country = saved.country;
+  }
+  bindSeg();
+  fetch("/api/current").then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (j) { HAS_SERVER = true; merge(j); if (j.saved) status("Showing what is in config.json now."); })
+    .catch(function () {
+      try { merge(JSON.parse(localStorage.getItem("couchtv:customise") || "null")); } catch (e) {}
+      status("Preview only: Save will download a file.", true);
+    })
+    .then(function () { drawAll(); fit(); $("frame").src = previewUrl(); });
+})();
+</script>
+</body>
+</html>

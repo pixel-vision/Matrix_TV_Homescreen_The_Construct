@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" class="theme-crypt saver">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crypt screensaver</title>
+<!-- The Crypt screensaver (CryptDream.kt shows this page when the TV is idle; any button ends it).
+     The code rain, scanlines and edge glow come from crypt.js and crypt.css, the same as the home.
+     The clock, the date and the local weather sit in the terminal window, which drifts to a new
+     spot every minute so nothing stays put long enough to mark the screen.
+     Preview it in a browser: serve the repo and open tv-home/web/saver.html (add ?mock=1 for
+     sample weather, &clock=12h for a 12 hour clock; &fight=1 for the fights, &wake=20 for the wake-up
+     message every 20 s, &dim=fast for the darkening). -->
+<style>
+  html { font-size: calc(100vw / 120); background: #000; }
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 100vw; height: 100vh; overflow: hidden; background: #000; cursor: none; --safe-x: 5rem; }
+  .stage { position: fixed; top: 0; right: 0; bottom: 0; left: 0; transition: transform 3s ease-in-out; }
+  .stage .crypt-frame { position: absolute; }
+  .time { position: absolute; }
+  .date { position: absolute; }
+  .date .cwx i { font-style: normal; opacity: 0.6; }
+  .date .idle { display: block; margin-top: 0.75rem; font-family: var(--c-term); font-size: 2rem; letter-spacing: 0.12em; color: var(--c-green); opacity: 0.75; }
+  #fight { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 30; pointer-events: none; opacity: 0; transition: opacity 1.2s ease; }
+  html.s-fight #fight { opacity: 0.55; }   /* dimmed: the afterimages stack up, so the canvas as a whole is turned down */
+  #corner { position: fixed; left: 6rem; bottom: 5rem; z-index: 31; font-family: var(--c-term); font-size: 1.75rem; letter-spacing: 0.12em;
+    color: var(--c-green); opacity: 0; transition: opacity 1.2s ease; }
+  html.s-fight #corner { opacity: 0.6; }
+  #corner { opacity: 0.5; transition: opacity 1.2s ease; }
+  /* the edges breathe softly (enough for the Govee camera to follow), and go fully dark between
+     the time and a scene */
+  .crypt-edge { animation: s-breathe 8s cubic-bezier(0.45, 0, 0.55, 1) infinite; transition: opacity 0.8s ease; }
+  @keyframes s-breathe { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+  html.s-dark .crypt-edge { animation: none; opacity: 0; }
+  html.s-dark #corner { opacity: 0; }
+  #dim { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 59; background: #000; opacity: 0; pointer-events: none; transition: opacity 20s linear; }
+</style>
+<link rel="stylesheet" href="crypt.css">
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="time" id="time"></div>
+  <div class="date" id="date"><span class="dline" id="dline"></span><span class="cwx" id="cwx"></span><span class="idle" id="idle"></span></div>
+</div>
+<canvas id="fight"></canvas>
+<div id="corner"></div>
+<div id="dim"></div>
+<script src="config.js"></script>
+<script src="crypt.js"></script>
+<script src="fight.js"></script>
+<script src="saver.js"></script>
+</body>
+</html>
