@@ -101,8 +101,9 @@ Small scenes from the film turn up while you browse:
 
 ## The screensaver fights
 
-When the TV goes idle, the rain spells the time, then a fight plays, a different one each time,
-in the order of the film. Each has its own set drawn behind it, and the screen edges flash with
+The fight scenes play **when the screensaver is on**. When the TV goes idle, the rain spells the
+time, then a fight plays, a different one each time, in the order of the film. (In the browser
+demo the screensaver comes on after a minute with no key pressed, or press its Screensaver button.) Each has its own set drawn behind it, and the screen edges flash with
 the big hits.
 
 | | Scene | From the film | The line afterwards |
