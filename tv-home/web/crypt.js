@@ -29,7 +29,8 @@
   var redPill = false, frozenUntil = 0, opMode = false;
   // an app is in front: on a TV the page is never "hidden", so app.js tells us (couch-pause/resume)
   var away = false;
-  function gone() { return document.hidden || away || !!saverEl; }   // (or the screensaver is up)
+  // (or the screensaver is up, or a program covers the home: the rain stops so the fight has the TV to itself)
+  function gone() { return document.hidden || away || !!saverEl || !!(progEl && progEl.classList.contains("go")); }
   function base() { return redPill ? RED : GREEN; }
   // the weather sets how hard it rains: a factor for how many near columns fall and how fast
   var wx = { density: 1, speed: 1, storm: false };
@@ -1633,6 +1634,9 @@
     phone: ["the phone rings", phoneRing], sentinels: ["sentinels overhead", sentinels], agentface: ["an agent speaks", agentFace],
     reddress: ["the red dress", redDress], rabbit: ["the white rabbit", whiteRabbit], cat: ["deja vu (the cat)", function () { catWalk(false); }]
   };
+  function tryMoment(name, tries) {   // from the console: if something is still finishing, try again shortly
+    if (!moment(name) && tries > 0) setTimeout(function () { tryMoment(name, tries - 1); }, 600);
+  }
   function moment(name) {
     if (momentOn || broken || swallow || hrun || gone() || alarmOn) return false;
     var m = MOMENTS[name];
@@ -1841,8 +1845,8 @@
     var art = "       .-\"\"\"\"\"\"-.\n     .'  @    @  '.\n    (  @  .--.  @  )\n     '. @ '--' @ .'\n      /|/|/||\\|\\|\\\n     //|/ |||| \\|\\\\\n    // |  ||||  | \\\\\n   //  |  ||||  |  \\\\\n  '    '  ''''  '    '";
     var made = [];
     // [top rem, size rem, delay s]: they keep coming for the whole 15 seconds
-    [[4, 2.6, 0.2], [20, 1.8, 2], [10, 3.2, 4.5], [24, 2.2, 7.5], [6, 2, 10]].forEach(function (a) {
-      var sEl = el("pre", "crypt-sentinel", art);
+    [[4, 2.6, 0.2], [20, 1.8, 1.6], [10, 3.2, 3.4], [24, 2.2, 5.2], [6, 2, 6.6]].forEach(function (a) {
+      var sEl = el("pre", "crypt-sentinel", art.replace(/@/g, "<b>@</b>"));   // a dark shape; only the eyes burn
       sEl.style.top = a[0] + "rem"; sEl.style.fontSize = a[1] + "rem"; sEl.style.animationDelay = a[2] + "s";
       document.body.appendChild(sEl); made.push(sEl);
     });
@@ -1883,20 +1887,21 @@
     root.classList.add("crypt-grey");
     var c = el("canvas", "crypt-dress");
     document.body.appendChild(c);
-    var dpr = window.devicePixelRatio || 1, g = c.getContext("2d");
-    c.width = innerWidth * dpr; c.height = innerHeight * dpr;
-    var hgt = innerHeight * 0.22, t0 = performance.now(), dur = 9000;
+    // a strip along the bottom only, at screen resolution, no blur: cheap enough to start at once on the TV
+    var hgt = innerHeight * 0.22, band = hgt * 1.15, g = c.getContext("2d");
+    c.width = innerWidth; c.height = Math.round(band);
+    c.style.cssText = "top:auto;bottom:0;height:" + Math.round(band) + "px";
+    var t0 = performance.now(), dur = 9000, off = innerHeight - band;
     gColour(RED, true);
     command("were you looking at her?", true);
     cmdHold = Date.now() + 10000;
     (function step(now) {
       var t = (now - t0) / dur;
-      g.setTransform(dpr, 0, 0, dpr, 0, 0);
-      g.clearRect(0, 0, innerWidth, innerHeight);
+      g.setTransform(1, 0, 0, 1, 0, -off);
+      g.clearRect(0, off, innerWidth, band);
       if (t < 1) {
         var x = -hgt + t * (innerWidth + 2 * hgt), y = innerHeight * 0.97, sw = Math.sin(t * 60) * 0.5;
         g.strokeStyle = "#ff2a3c"; g.fillStyle = "rgba(255,42,60,0.85)"; g.lineWidth = Math.max(2, hgt * 0.035); g.lineCap = "round";
-        g.shadowColor = "#ff2a3c"; g.shadowBlur = 12;
         var hip = [x, y - hgt * 0.42], neck = [x, y - hgt * 0.78];
         g.beginPath();   // the dress: a triangle from the waist
         g.moveTo(x - hgt * 0.02, y - hgt * 0.62); g.lineTo(x - hgt * 0.16, y - hgt * 0.34); g.lineTo(x + hgt * 0.16, y - hgt * 0.34); g.closePath(); g.fill();
@@ -2063,7 +2068,7 @@
     consoleClose();
     if (it[0] === "prog") return loadProgram(it[2]);
     if (it[0] === "fin") return loadFinal(it[2]);
-    if (it[0] === "mo") return setTimeout(function () { moment(it[2]); }, 500);
+    if (it[0] === "mo") return setTimeout(function () { tryMoment(it[2], 6); }, 500);
     if (it[0] === "train") { lastKeyAt = Date.now(); return setTimeout(function () { hardlineRun(true); }, 400); }
     var e = it[2];
     setTimeout(function () {
@@ -2097,7 +2102,7 @@
     var fin = progEl && progEl.classList.contains("crypt-finale");
     if (progNow) { progNow.stop(); progNow = null; }
     if (progEl) { progEl.remove(); progEl = null; }
-    swallow = false; wakeHome();
+    swallow = false; wakeHome(); run();   // the rain starts again
     if (fin) crtOn();   // the finale ends like a reload: the tube comes back on
     command(fin ? "end of line." : FIGHT_QUOTES[progScene] || "i know kung fu.", true);
     cmdHold = Date.now() + 7000;

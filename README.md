@@ -35,6 +35,9 @@ into the final battle with Agent Smith. It is a customised build of
 - **A home screen in the Matrix.** The clock and date sit in a terminal window over falling code.
   The code above the app you're on falls in that app's colour, and the screen edges glow with it,
   so a TV backlight that follows the picture lights the room to match.
+- **Rain that follows your weather.** The terminal shows your local weather, and the code rain
+  reacts to it: it pours harder when it's raining outside, thins out on a clear day, and in a
+  thunderstorm lightning flashes across the screen (and the room, if your lights follow the TV).
 - **A construct that does things on its own.** While the home screen is up, something happens
   every few minutes. Some of it you just watch; some of it needs you to pick up the remote.
 - **A screensaver that plays the films.** When the TV is idle, the rain spells out the time, then

@@ -848,8 +848,17 @@
         ctx.strokeStyle = "rgba(57,255,122,0.9)"; ctx.lineWidth = Math.max(2, s * 0.05); ctx.strokeRect(cx - s, cy - s, s * 2, s * 2);
         ctx.beginPath(); ctx.arc(cx, cy, s * 1.45, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left);
         ctx.strokeStyle = left < 0.3 ? "rgba(255,90,110,0.9)" : "rgba(200,255,216,0.85)"; ctx.lineWidth = Math.max(3, s * 0.08); ctx.stroke();
-        ctx.fillStyle = "#e8fff0"; ctx.font = Math.round(s * 1.3) + "px " + font;
-        ctx.fillText(ARROW[prompt.q.key] || "OK", cx, cy + s * 0.05);
+        var ang = { ArrowUp: -Math.PI / 2, ArrowDown: Math.PI / 2, ArrowLeft: Math.PI, ArrowRight: 0 }[prompt.q.key];
+        if (ang != null) {   // the arrow drawn, not typed, so it sits dead centre in the box
+          ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+          ctx.strokeStyle = "#e8fff0"; ctx.lineWidth = Math.max(3, s * 0.14); ctx.lineCap = "round"; ctx.lineJoin = "round";
+          ctx.beginPath(); ctx.moveTo(-s * 0.55, 0); ctx.lineTo(s * 0.5, 0);
+          ctx.moveTo(s * 0.12, -s * 0.4); ctx.lineTo(s * 0.55, 0); ctx.lineTo(s * 0.12, s * 0.4); ctx.stroke();
+          ctx.restore();
+        } else {
+          ctx.fillStyle = "#e8fff0"; ctx.font = Math.round(s * 0.9) + "px " + font;
+          ctx.fillText("OK", cx, cy + s * 0.06);
+        }
         ctx.font = Math.round(Hh * 0.03) + "px " + font; ctx.fillStyle = "rgba(57,255,122,0.9)";
         ctx.fillText(prompt.q.label, cx, cy + s * 1.9);
       } else if (result && now - result.at < 900) {

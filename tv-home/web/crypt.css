@@ -531,7 +531,11 @@ html.crypt-op .crypt-frame { box-shadow: 0 0 0 0.15rem rgba(57, 255, 122, 0.35);
 .app.crypt-brick .face { box-shadow: 0 0 1.5rem rgba(57, 255, 122, 0.7) !important; filter: none !important; opacity: 1 !important; }
 .crypt-ring { position: fixed; left: 50%; transform: translateX(-50%); top: 4.5rem; padding: 0.6rem 1.5rem; border: 0.15rem solid rgba(57, 255, 122, 0.7); background: rgba(0, 10, 4, 0.85); z-index: 22; pointer-events: none; font-family: var(--c-term); font-size: 2rem; letter-spacing: 0.12em;
   color: #eafff0; text-shadow: 0 0 0.5rem rgba(57, 255, 122, 0.8); animation: crypt-blink 0.8s steps(1) infinite; }
-.crypt-sentinel { left: 100vw; z-index: 31; color: #ff6a7d; line-height: 1.05; text-shadow: 0 0 0.5rem #ff2840, 0 0 1.6rem rgba(255, 40, 60, 0.9); animation: crypt-drift 7s linear 1 both; }
+/* the sentinels: dark shapes against the dark, a faint red edge, the eyes the only thing lit */
+.crypt-sentinel { left: 100vw; z-index: 31; color: #2a060b; line-height: 1.05; text-shadow: 0 0 0.35rem rgba(150, 10, 25, 0.75), 0 0 1.4rem rgba(90, 0, 12, 0.6);
+  animation: crypt-drift 8.5s cubic-bezier(.45, .05, .55, .95) 1 both; }
+.crypt-sentinel b { font-weight: normal; color: #ff3046; text-shadow: 0 0 0.4rem #ff1a30, 0 0 1.2rem rgba(255, 20, 40, 0.9); animation: crypt-eyes 1.7s steps(1) infinite; }
+@keyframes crypt-eyes { 0%, 88% { opacity: 1; } 90%, 94% { opacity: 0.15; } 96% { opacity: 1; } }
 @keyframes crypt-drift { from { transform: translateX(0) translateY(0); } 50% { transform: translateX(-70vw) translateY(1.5rem); } to { transform: translateX(-165vw) translateY(0); } }
 .crypt-face { top: 8vh; font-size: 2.6rem; line-height: 2.7rem; color: rgba(200, 255, 216, 0.85); text-shadow: 0 0 0.6rem rgba(57, 255, 122, 0.8);
   animation: crypt-faceflick 1.5s steps(1) 1 forwards; }
@@ -542,10 +546,11 @@ html.crypt-grey .home, html.crypt-grey .crypt-rain, html.crypt-grey .crypt-frame
 .crypt-rabbit { position: fixed; z-index: 20; left: 0; top: 0; margin: 0; pointer-events: none; font-family: var(--c-term); font-size: 1.6rem;
   line-height: 1.7rem; color: #fff; white-space: pre; text-shadow: 0 0 0.6rem rgba(255, 255, 255, 0.8); opacity: 0; }
 html.crypt-godark .home, html.crypt-godark .crypt-frame, html.crypt-godark .crypt-log, html.crypt-godark .crypt-rain, html.crypt-godark .crypt-trace,
-html.crypt-godark .crypt-edge { filter: brightness(0.18); transition: filter 1.2s ease; }
+html.crypt-godark .crypt-edge { filter: brightness(0.07); transition: filter 1.2s ease; }   /* the green all but gone */
+html.crypt-godark .clock { filter: brightness(0.35); transition: filter 1.2s ease; }   /* the clock dims too; its words still readable */
 .crypt-search { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 30; pointer-events: none; overflow: hidden; }
 .crypt-search i { position: absolute; top: -20vh; width: 30vw; height: 140vh; left: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 40, 60, 0.22), rgba(255, 120, 130, 0.35), rgba(255, 40, 60, 0.22), transparent);
+  background: linear-gradient(90deg, transparent, rgba(200, 30, 45, 0.13), rgba(255, 90, 100, 0.2), rgba(200, 30, 45, 0.13), transparent);
   transform-origin: 50% 0; animation: crypt-scan 5s ease-in-out infinite alternate; filter: blur(0.5rem); }
 .crypt-search i + i { animation-duration: 6.5s; animation-delay: -2s; opacity: 0.7; }
 @keyframes crypt-scan { from { transform: translateX(-30vw) rotate(-12deg); } to { transform: translateX(100vw) rotate(12deg); } }

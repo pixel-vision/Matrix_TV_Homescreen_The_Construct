@@ -294,6 +294,21 @@ section.op { border-color: #1d4a30; }
   });
   // a click inside the TV also takes the remote
   tv.addEventListener("load", function () { try { home().addEventListener("mousedown", take); } catch (e) {} });
+  // like the TV (which waits 10 minutes), the screensaver comes on by itself: here after a minute
+  // with no key, click or tap, so a visitor sees it without hunting for the button
+  var idleAt = Date.now();
+  function touch() { idleAt = Date.now(); }
+  ["keydown", "mousedown", "touchstart", "wheel"].forEach(function (ev) { document.addEventListener(ev, touch, true); });
+  tv.addEventListener("load", function () {
+    try { ["keydown", "mousedown", "touchstart"].forEach(function (ev) { home().addEventListener(ev, touch, true); }); } catch (e) {}
+  });
+  setInterval(function () {
+    if (Date.now() - idleAt < 60000 || document.hidden) return;
+    var w = home(), d = w && w.document;
+    if (!w || !w.crypt || !w.crypt.saver || !d) return;
+    if (d.querySelector(".crypt-saverframe, .crypt-program, .crypt-console.on, .crypt-take.on, .crypt-choice")) { touch(); return; }   // already showing something
+    touch(); w.crypt.saver();
+  }, 5000);
 })();
 </script>
 
