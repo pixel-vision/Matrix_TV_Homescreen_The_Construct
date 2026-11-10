@@ -5,7 +5,7 @@ you answer with the remote, a hidden passcode, and a screensaver that replays th
 
 ![The home screen: code rain, the terminal clock, keep watching and the app dock](docs/matrix/home.jpg)
 
-**[▶ Try it in your browser](https://pixel-vision.github.io/Matrix_TV_Homescreen_The_Construct/demo/)**:
+**[▶ Try it in your browser](https://pixel-vision.github.io/Matrix_TV_The_Construct/demo/)**:
 your keyboard is the remote (on a phone, use the on-screen one). The apps and shows are samples,
 and nothing in the demo reaches a real TV.
 
