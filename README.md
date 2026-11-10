@@ -3,6 +3,11 @@
 **Your TV's home screen, turned into the Matrix.** Code rain, a 90s terminal clock, random events
 you answer with the remote, a hidden passcode, and a screensaver that replays the film's fights.
 
+<p align="center">
+  <a href="docs/matrix/the-construct-trailer.mp4"><img src="docs/matrix/trailer-teaser.gif" width="280" alt="The Construct: trailer"></a><br>
+  <b><a href="docs/matrix/the-construct-trailer.mp4">▶ Watch the trailer</a></b> (70 seconds, made for your phone)
+</p>
+
 ![The home screen: code rain, the terminal clock, keep watching and the app dock](docs/matrix/home.jpg)
 
 **[▶ Try it in your browser](https://pixel-vision.github.io/Matrix_TV_The_Construct/demo/)**:
