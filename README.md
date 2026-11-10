@@ -24,7 +24,7 @@ and nothing in the demo reaches a real TV.
   </tr>
 </table>
 
-It runs on a Google TV (built and tested on a Sony BRAVIA) as a replacement home screen, with no
+It runs on Google TV and Android TV (built and tested on a Sony BRAVIA; [which TVs?](#will-it-work-on-my-tv)) as a replacement home screen, with no
 ads, your apps along the bottom and "keep watching" for your shows. When the TV goes idle, the
 screensaver plays the fights from the first film, drawn live in code, and the remote can drop you
 into the final battle with Agent Smith. It is a customised build of
@@ -133,6 +133,26 @@ plays itself.
 | **Back** | leaves the console, a program or a hardline run; dismisses a result |
 | **Any button** | wakes the screensaver; knocks over the vase |
 | **The passcode** | wakes the construct, brings up the pills, and is the only way back from a broken construct (see above) |
+
+## Will it work on my TV?
+
+It's built for **Google TV and Android TV**. That's where it replaces the home screen and the
+screensaver, and where everything on this page works.
+
+| Your TV | Works? |
+|---|---|
+| **Google TV** (Sony, TCL, Philips, Hisense Google TV and others) | **Yes, everything.** Built and tested on a Sony BRAVIA |
+| **Google TV box** (Google TV Streamer, Chromecast with Google TV, Onn) | **Yes, everything** |
+| **Older Android TV** (Android 7.1 to 11), **Nvidia Shield** | **Yes** (the Shield is untested) |
+| **Fire TV stick on Fire OS** (Stick 4K, 4K Max, Cube) | **Partly.** The Matrix home works, but Amazon's home flashes up for a moment before it comes back. The Matrix screensaver is untested |
+| **Samsung** (Tizen) and **LG** (webOS) | **Partly.** The Matrix home runs as an app, not as the real home screen, and needs a computer at home that stays on to open it each time. The remote's Home button still opens the TV's own menu. **No screensaver fights**: the screensaver is an Android feature |
+| **Roku, Apple TV, Hisense VIDAA, Fire TV on Vega OS** | **No** |
+
+**Not sure what yours runs?** On the TV, open **Settings → System → About** (or **Device
+Preferences → About**). If it says **"Android TV OS"**, it works. Brands like Hisense and Sharp sell
+both kinds, so it depends on the model, not the brand.
+
+**No luck?** A Google TV box plugged into the TV's HDMI gets you everything, on any TV.
 
 ## Setting it up
 
