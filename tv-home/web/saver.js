@@ -148,13 +148,13 @@
   }
   setInterval(idle, 1000); idle(); moveCorner(); setInterval(moveCorner, 240000);
 
-  // darker the longer it runs, but only after midnight: from 12am to 6am it starts at 45% and goes
-  // down to 80% over the hour; in the day and the evening it stays bright
+  // darker the longer it runs, any time of day: bright for the first 5 minutes, then down to half
+  // brightness by 30 minutes; after midnight (12am to 6am) it goes darker still, to 80% over the hour
   var dimNow = 0;
   function dim() {
     var mins = (Date.now() - started) / 60000 * (arg("dim") === "fast" ? 60 : 1), h = new Date().getHours();
-    var night = h < 6 || arg("dim") === "fast", d = 0;
-    if (night) d = Math.min(0.8, 0.45 + Math.max(0, mins / 60) * 0.35);
+    var d = Math.min(0.5, Math.max(0, mins - 5) / 25 * 0.5);
+    if (h < 6) d = Math.max(d, Math.min(0.8, 0.45 + Math.max(0, mins / 60) * 0.35));
     dimNow = d;
     $("dim").style.opacity = d.toFixed(2);
   }
